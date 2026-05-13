@@ -58,26 +58,26 @@ const Header = ({ isDark, setIsDark }) => {
   return (
     <header className="h-16 bg-white dark:bg-dark-900 border-b border-slate-200 dark:border-dark-700 fixed top-0 right-0 w-[calc(100%-256px)] flex items-center justify-between px-8 z-10 shadow-sm">
       <div className="relative w-96">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500" size={18} />
+        {/* <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500" size={18} />
         <input
           type="text"
           placeholder="Search leads, activities, emails..."
           className="input-field pl-10"
-        />
+        /> */}
       </div>
 
       <div className="flex items-center gap-6">
-        <button
+        {/* <button
           onClick={() => setIsDark(!isDark)}
           className="relative text-slate-400 hover:text-primary-600 dark:hover:text-slate-200 transition-colors p-2 rounded-full hover:bg-slate-100 dark:hover:bg-dark-700"
         >
           {isDark ? <Sun size={20} /> : <Moon size={20} />}
-        </button>
+        </button> */}
 
-        <button className="relative text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 transition-colors">
+        {/* <button className="relative text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 transition-colors">
           <Bell size={22} />
           <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-primary-500 rounded-full shadow-[0_0_8px_rgba(20,184,166,0.8)]"></span>
-        </button>
+        </button> */}
         <div className="flex items-center gap-3 pl-6 border-l border-slate-200 dark:border-dark-700/50">
           <div className="text-right">
             <p className="text-sm font-medium text-slate-800 dark:text-slate-200">Alex Jensen</p>

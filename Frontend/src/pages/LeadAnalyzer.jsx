@@ -911,28 +911,28 @@ const LeadAnalyzer = () => {
               ({row.original.contactName})
             </span>
             <div className="flex items-center gap-2 shrink-0 ml-auto border-l border-slate-100 dark:border-dark-800 pl-2">
-              <div className="flex gap-1">
+              <div className="flex gap-1.5">
                 {row.original.nurture.needsNurture && (
                   <span
                     title={`Last activity: ${formatDuration(row.original.nurture.inactiveMin)} ago`}
-                    className="h-2 w-2 rounded-full bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.6)] cursor-help"
+                    className="h-2.5 w-2.5 rounded-full bg-amber-500 shadow-[0_0_10px_rgba(245,158,11,0.8)] cursor-help shrink-0"
                   ></span>
                 )}
                 {row.original.nurture.isStale && (
                   <span
                     title={`Lead age: ${formatDuration(row.original.nurture.ageMin)}`}
-                    className="h-2 w-2 rounded-full bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.6)] cursor-help"
+                    className="h-2.5 w-2.5 rounded-full bg-rose-500 shadow-[0_0_10px_rgba(244,63,94,0.8)] cursor-help shrink-0"
                   ></span>
                 )}
               </div>
-              <div className="flex items-center gap-1.5 ml-1">
+              <div className="flex items-center gap-2 ml-1.5 border-l border-slate-100 dark:border-dark-800 pl-2">
                 {row.original.email !== '-' && (
-                  <Mail size={11} className={row.original.preferredMethod === 'Email' ? 'text-primary-500' : 'text-slate-300 dark:text-slate-600'} />
+                  <Mail size={12} className={row.original.preferredMethod === 'Email' ? 'text-primary-500' : 'text-slate-300 dark:text-slate-600'} />
                 )}
                 {row.original.mobileNo !== '-' && (
-                  <div className="flex items-center gap-1">
-                    <Phone size={11} className={row.original.preferredMethod === 'Phone' ? 'text-emerald-500' : 'text-slate-300 dark:text-slate-600'} />
-                    <MessageSquare size={11} className={['sms', 'text'].includes(row.original.preferredMethod?.toLowerCase()) ? 'text-indigo-500' : 'text-slate-300 dark:text-slate-600'} />
+                  <div className="flex items-center gap-1.5">
+                    <Phone size={12} className={row.original.preferredMethod === 'Phone' ? 'text-emerald-500' : 'text-slate-300 dark:text-slate-600'} />
+                    <MessageSquare size={12} className={['sms', 'text'].includes(row.original.preferredMethod?.toLowerCase()) ? 'text-indigo-500' : 'text-slate-300 dark:text-slate-600'} />
                   </div>
                 )}
               </div>
