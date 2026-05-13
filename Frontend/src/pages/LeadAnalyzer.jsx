@@ -112,14 +112,14 @@ const displayValue = (value) => {
 
 const getNurtureStatus = (createdOn, lastActivityDate) => {
   if (!createdOn) return { isStale: false, needsNurture: false };
-  
+
   const now = new Date();
   const created = new Date(createdOn);
   const activity = new Date(lastActivityDate || createdOn);
-  
+
   const diffCreatedMin = (now - created) / (1000 * 60);
   const diffActivityMin = (now - activity) / (1000 * 60);
-  
+
   return {
     isStale: diffCreatedMin >= 1,
     needsNurture: diffActivityMin >= 1,
@@ -128,11 +128,26 @@ const getNurtureStatus = (createdOn, lastActivityDate) => {
   };
 };
 
+const formatDuration = (totalMinutes) => {
+  if (totalMinutes < 1) return 'just now';
+
+  const days = Math.floor(totalMinutes / (24 * 60));
+  const hours = Math.floor((totalMinutes % (24 * 60)) / 60);
+  const minutes = Math.floor(totalMinutes % 60);
+
+  const parts = [];
+  if (days > 0) parts.push(`${days} day${days > 1 ? 's' : ''}`);
+  if (hours > 0) parts.push(`${hours} hour${hours > 1 ? 's' : ''}`);
+  if (minutes > 0) parts.push(`${minutes} minute${minutes !== 1 ? 's' : ''}`);
+
+  return parts.length > 0 ? parts.join(' ') : 'just now';
+};
+
 const normalizeLead = (lead, index) => {
   const nurture = getNurtureStatus(lead.CreatedOn, lead.LastActivityDate);
   const inputDetails = lead.InputDetails || {};
   const preferredMethod = inputDetails.contactMethod || (lead.Email ? 'Email' : 'Phone');
-  
+
   return {
     id: lead.LeadID || lead._id || `TEMP-${index + 1}`,
     leadNo: lead.LeadNo || `LEAD-${index + 1}`,
@@ -182,7 +197,7 @@ const LeadDetailSection = ({ title, fields }) => {
           {isOpen ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
         </div>
       </button>
-      
+
       {isOpen && (
         <div className="p-4 pt-0">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4">
@@ -201,14 +216,14 @@ const LeadDetailSection = ({ title, fields }) => {
   );
 };
 
-const EmailModal = ({ 
-  lead, 
-  onClose, 
-  onAnalyze, 
-  analyzingId, 
-  onGenerateEmail, 
-  generatingEmail, 
-  generatedEmail, 
+const EmailModal = ({
+  lead,
+  onClose,
+  onAnalyze,
+  analyzingId,
+  onGenerateEmail,
+  generatingEmail,
+  generatedEmail,
   onEmailChange,
   customOffer,
   onCustomOfferChange,
@@ -477,7 +492,7 @@ const EmailModal = ({
                 {isScoreOpen ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
               </div>
             </button>
-            
+
             {isScoreOpen && (
               <div className="p-4 pt-0">
                 <div className="space-y-3 mt-4">
@@ -515,7 +530,7 @@ const EmailModal = ({
               </p>
             </div>
           </section>
-          
+
           <div className="h-2 shrink-0"></div>
         </div>
       </div>
@@ -540,13 +555,13 @@ const PhoneModal = ({ lead, onClose }) => {
             <p className="text-3xl font-black text-primary-600 dark:text-primary-400 tracking-tight">{lead.mobileNo}</p>
           </div>
           <div className="grid grid-cols-2 gap-4">
-            <a 
-              href={`tel:${lead.mobileNo}`} 
+            <a
+              href={`tel:${lead.mobileNo}`}
               className="flex items-center justify-center gap-2 p-4 rounded-2xl bg-emerald-600 text-white font-bold hover:bg-emerald-700 transition-all active:scale-95 shadow-lg shadow-emerald-500/20"
             >
               <Phone size={18} /> Call Now
             </a>
-            <button 
+            <button
               onClick={onClose}
               className="flex items-center justify-center gap-2 p-4 rounded-2xl bg-slate-100 dark:bg-dark-800 text-slate-600 dark:text-slate-300 font-bold hover:bg-slate-200 dark:hover:bg-dark-700 transition-all active:scale-95"
             >
@@ -584,7 +599,7 @@ const TextModal = ({ lead, onClose, generatedSms, generatingSms }) => {
                 {generatingSms ? 'Generating AI message...' : generatedSms}
               </div>
               {!generatingSms && (
-                <button 
+                <button
                   onClick={() => navigator.clipboard.writeText(generatedSms)}
                   className="absolute top-2 right-2 p-2 rounded-lg bg-white dark:bg-dark-800 border border-indigo-100 dark:border-indigo-800 text-indigo-500 hover:bg-indigo-50 shadow-sm transition-all active:scale-90"
                   title="Copy to clipboard"
@@ -594,7 +609,7 @@ const TextModal = ({ lead, onClose, generatedSms, generatingSms }) => {
               )}
             </div>
           </div>
-          
+
           <div className="bg-amber-50 dark:bg-amber-900/20 p-3 rounded-xl border border-amber-100 dark:border-amber-800/50 flex gap-3">
             <AlertCircle size={18} className="text-amber-500 shrink-0" />
             <p className="text-[11px] text-amber-700 dark:text-amber-400 leading-tight font-medium">
@@ -676,7 +691,7 @@ const LeadAnalyzer = () => {
     setGeneratedEmail('');
     setCustomOffer('');
     setGeneratedSms('');
-    
+
     // Auto-trigger generation for email/text
     if (modalType === 'email' || modalType === 'text') {
       setShouldAutoGenerate(true);
@@ -702,11 +717,11 @@ const LeadAnalyzer = () => {
         const response = await api.get('/hotel-offers');
         const hotels = response.data || [];
         setAllHotelOffers(hotels);
-        
+
         const lead = leads.find(l => l.id === selectedLeadId);
         if (lead?.raw) {
-          const hotel = hotels.find(h => 
-            h.HotelOfferID === lead.raw.SelectedHotelOfferID || 
+          const hotel = hotels.find(h =>
+            h.HotelOfferID === lead.raw.SelectedHotelOfferID ||
             (lead.raw.PropertyID && h.HotelCode === lead.raw.PropertyID)
           ) || (hotels.length > 0 ? hotels[0] : null);
           setCurrentHotelOffer(hotel || null);
@@ -795,7 +810,7 @@ const LeadAnalyzer = () => {
     try {
       const isFollowUp = selectedLead.status === 'Follow-up';
       const endpoint = isFollowUp ? '/communication/generate-follow-up' : '/communication/smart-reply';
-      const payload = isFollowUp 
+      const payload = isFollowUp
         ? { leadId: selectedLead.id, leadData: selectedLead.raw, customOffer: activeOffer }
         : { leadData: selectedLead.raw, emailContext: 'Initial outreach for event planning inquiry', customOffer: activeOffer };
 
@@ -813,9 +828,9 @@ const LeadAnalyzer = () => {
     if (!selectedLead) return;
     setGeneratingSms(true);
     try {
-      const response = await api.post('/communication/generate-sms', { 
-        leadId: selectedLead.id, 
-        leadData: selectedLead.raw 
+      const response = await api.post('/communication/generate-sms', {
+        leadId: selectedLead.id,
+        leadData: selectedLead.raw
       });
       setGeneratedSms(response.data.sms);
     } catch (error) {
@@ -855,13 +870,13 @@ const LeadAnalyzer = () => {
     try {
       // Find the hotel object to get its code
       const hotel = allHotelOffers.find(h => h.HotelOfferID === hotelId);
-      
-      await api.put(`/leads/${selectedLeadId}`, { 
+
+      await api.put(`/leads/${selectedLeadId}`, {
         selectedHotelOfferId: hotelId,
         SelectedHotelCode: hotel?.HotelCode,
         PropertyID: hotel?.HotelCode
       });
-      
+
       // Refresh local leads to reflect change
       loadLeads();
     } catch (error) {
@@ -880,72 +895,67 @@ const LeadAnalyzer = () => {
 
   const columns = useMemo(() => [
     {
-      accessorKey: 'leadNo',
-      header: 'Lead No',
-      cell: ({ row }) => (
-        <button
-          onClick={() => navigate(`/leads/new/${row.original.id}`)}
-          className="font-semibold text-primary-700 dark:text-primary-300 hover:underline"
-        >
-          {row.original.leadNo}
-        </button>
-      ),
-    },
-    {
       accessorKey: 'companyName',
       header: 'Company',
       cell: ({ row }) => (
-        <div>
-          <div className="flex items-center gap-2 mb-0.5">
-            <p className="font-bold text-slate-900 dark:text-white leading-none">{row.original.companyName}</p>
+        <div className="flex flex-col gap-1 py-0.5 min-w-[240px]">
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => navigate(`/leads/new/${row.original.id}`)}
+              className="font-bold text-slate-900 dark:text-white hover:text-primary-600 hover:underline transition-colors truncate text-sm"
+              title={row.original.companyName}
+            >
+              {row.original.companyName}
+            </button>
+            <span className="text-[10px] text-slate-400 dark:text-slate-500 font-medium truncate shrink-0">
+              ({row.original.contactName})
+            </span>
+            <div className="flex items-center gap-2 shrink-0 ml-auto border-l border-slate-100 dark:border-dark-800 pl-2">
+              <div className="flex gap-1">
+                {row.original.nurture.needsNurture && (
+                  <span
+                    title={`Last activity: ${formatDuration(row.original.nurture.inactiveMin)} ago`}
+                    className="h-2 w-2 rounded-full bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.6)] cursor-help"
+                  ></span>
+                )}
+                {row.original.nurture.isStale && (
+                  <span
+                    title={`Lead age: ${formatDuration(row.original.nurture.ageMin)}`}
+                    className="h-2 w-2 rounded-full bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.6)] cursor-help"
+                  ></span>
+                )}
+              </div>
+              <div className="flex items-center gap-1.5 ml-1">
+                {row.original.email !== '-' && (
+                  <Mail size={11} className={row.original.preferredMethod === 'Email' ? 'text-primary-500' : 'text-slate-300 dark:text-slate-600'} />
+                )}
+                {row.original.mobileNo !== '-' && (
+                  <div className="flex items-center gap-1">
+                    <Phone size={11} className={row.original.preferredMethod === 'Phone' ? 'text-emerald-500' : 'text-slate-300 dark:text-slate-600'} />
+                    <MessageSquare size={11} className={['sms', 'text'].includes(row.original.preferredMethod?.toLowerCase()) ? 'text-indigo-500' : 'text-slate-300 dark:text-slate-600'} />
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
             {row.original.nurture.needsNurture && (
               <span 
-                className="flex h-2 w-2 rounded-full bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.6)]" 
-                title={`Inactive for ${row.original.nurture.inactiveMin} minutes`}
-              ></span>
+                title={`Last activity: ${formatDuration(row.original.nurture.inactiveMin)} ago`}
+                className="px-1.5 py-0.5 rounded-[4px] text-[9px] font-black uppercase tracking-tight bg-amber-50 text-amber-600 border border-amber-200 dark:bg-amber-500/10 dark:text-amber-400 cursor-help"
+              >
+                Awaiting Action
+              </span>
             )}
             {row.original.nurture.isStale && (
               <span 
-                className="flex h-2 w-2 rounded-full bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.6)]" 
-                title={`Generated ${row.original.nurture.ageMin} minutes ago`}
-              ></span>
+                title={`Lead age: ${formatDuration(row.original.nurture.ageMin)}`}
+                className="px-1.5 py-0.5 rounded-[4px] text-[9px] font-black uppercase tracking-tight bg-rose-50 text-rose-600 border border-rose-200 dark:bg-rose-500/10 dark:text-rose-400 cursor-help"
+              >
+                Stale Lead
+              </span>
             )}
-            <div className="flex items-center gap-1.5 ml-1 border-l border-slate-200 dark:border-dark-700 pl-2">
-               {row.original.email !== '-' && (
-                 <Mail 
-                   size={12} 
-                   className={row.original.preferredMethod === 'Email' ? 'text-primary-500' : 'text-slate-300 dark:text-slate-600'} 
-                   title="Email available"
-                 />
-               )}
-               {row.original.mobileNo !== '-' && (
-                 <>
-                   <Phone 
-                     size={12} 
-                     className={row.original.preferredMethod === 'Phone' ? 'text-emerald-500' : 'text-slate-300 dark:text-slate-600'} 
-                     title="Phone available"
-                   />
-                   <Smartphone 
-                     size={12} 
-                     className={row.original.preferredMethod === 'Text' ? 'text-blue-500' : 'text-slate-300 dark:text-slate-600'} 
-                     title="Text/SMS available"
-                   />
-                 </>
-               )}
-            </div>
-          </div>
-          <p className="text-xs text-slate-500 dark:text-slate-400">{row.original.contactName}</p>
-          <div className="flex gap-2 mt-1.5">
-             {row.original.nurture.needsNurture && (
-               <span className="px-1.5 py-0.5 rounded text-[10px] font-black uppercase tracking-tighter bg-amber-50 text-amber-600 border border-amber-200 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/20">
-                 Awaiting Action
-               </span>
-             )}
-             {row.original.nurture.isStale && (
-               <span className="px-1.5 py-0.5 rounded text-[10px] font-black uppercase tracking-tighter bg-rose-50 text-rose-600 border border-rose-200 dark:bg-rose-500/10 dark:text-rose-400 dark:border-rose-500/20">
-                 Stale Lead
-               </span>
-             )}
           </div>
         </div>
       ),
@@ -957,6 +967,9 @@ const LeadAnalyzer = () => {
     {
       accessorKey: 'mobileNo',
       header: 'Mobile',
+      cell: ({ getValue }) => (
+        <span className="inline-block min-w-[100px]">{getValue()}</span>
+      ),
     },
     {
       accessorKey: 'city',
@@ -966,7 +979,7 @@ const LeadAnalyzer = () => {
       accessorKey: 'type',
       header: 'Type',
       cell: ({ getValue }) => (
-        <span className="inline-flex px-2 py-1 rounded-md text-xs font-medium bg-slate-100 dark:bg-dark-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-dark-600">
+        <span className="inline-flex px-2 py-1 rounded-md text-xs font-medium bg-slate-100 dark:bg-dark-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-dark-600 min-w-[70px] justify-center">
           {getValue()}
         </span>
       ),
@@ -975,7 +988,7 @@ const LeadAnalyzer = () => {
       accessorKey: 'status',
       header: 'Status',
       cell: ({ getValue }) => (
-        <span className="inline-flex px-2 py-1 rounded-md text-xs font-medium bg-white dark:bg-dark-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-dark-600">
+        <span className="inline-flex px-2 py-1 rounded-md text-xs font-medium bg-white dark:bg-dark-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-dark-600 min-w-[80px] justify-center">
           {getValue()}
         </span>
       ),
@@ -983,10 +996,13 @@ const LeadAnalyzer = () => {
     {
       accessorKey: 'priority',
       header: 'Priority',
+      cell: ({ getValue }) => (
+        <span className="inline-block min-w-[70px]">{getValue()}</span>
+      ),
     },
     {
       accessorKey: 'score',
-      header: 'AI Probability',
+      header: 'AI Prob.',
       filterFn: (row, columnId, filterValue) => {
         if (!filterValue) return true;
         return Number(row.getValue(columnId)) >= Number(filterValue);
@@ -994,9 +1010,11 @@ const LeadAnalyzer = () => {
       cell: ({ getValue }) => {
         const score = getValue();
         return (
-          <span className={`px-2.5 py-1 rounded-full text-xs font-semibold border ${getScoreBadge(score)}`}>
-            {score}%
-          </span>
+          <div className="min-w-[80px]">
+            <span className={`px-2.5 py-1 rounded-full text-xs font-semibold border ${getScoreBadge(score)}`}>
+              {score}%
+            </span>
+          </div>
         );
       },
     },
@@ -1004,7 +1022,7 @@ const LeadAnalyzer = () => {
       accessorKey: 'action',
       header: 'Next Best Action',
       cell: ({ getValue }) => (
-        <div className="flex items-start gap-2 min-w-64">
+        <div className="flex items-start gap-2 min-w-[180px]">
           <Zap className="text-primary-500 shrink-0 mt-0.5" size={14} />
           <p className="text-sm text-slate-700 dark:text-slate-300 leading-snug">{getValue()}</p>
         </div>
@@ -1031,7 +1049,7 @@ const LeadAnalyzer = () => {
           >
             <Edit2 size={16} />
           </button>
-          
+
           {row.original.preferredMethod === 'Email' && row.original.email !== '-' && (
             <button
               onClick={(e) => {
@@ -1249,7 +1267,7 @@ const LeadAnalyzer = () => {
                 {table.getHeaderGroups().map((headerGroup) => (
                   <tr key={headerGroup.id} className="bg-slate-50/80 dark:bg-dark-900/40 border-b border-slate-200 dark:border-dark-700/50 text-slate-500 dark:text-slate-400 text-xs uppercase tracking-wider">
                     {headerGroup.headers.map((header) => (
-                      <th key={header.id} className="p-4 font-semibold whitespace-nowrap">
+                      <th key={header.id} className="p-4 font-semibold">
                         {header.isPlaceholder ? null : (
                           <button
                             onClick={header.column.getToggleSortingHandler()}
@@ -1282,13 +1300,12 @@ const LeadAnalyzer = () => {
                   table.getRowModel().rows.map((row) => (
                     <tr
                       key={row.id}
-                      className={`transition-colors border-l-4 ${
-                        row.original.nurture.isStale 
-                          ? 'bg-rose-50/30 dark:bg-rose-500/5 hover:bg-rose-50/50 dark:hover:bg-rose-500/10 border-l-rose-500' 
-                          : row.original.nurture.needsNurture
-                            ? 'bg-amber-50/30 dark:bg-amber-500/5 hover:bg-amber-50/50 dark:hover:bg-amber-500/10 border-l-amber-500'
-                            : 'hover:bg-slate-50/70 dark:hover:bg-dark-800/30 border-l-transparent'
-                      }`}
+                      className={`transition-colors border-l-4 ${row.original.nurture.isStale
+                        ? 'bg-rose-50/30 dark:bg-rose-500/5 hover:bg-rose-50/50 dark:hover:bg-rose-500/10 border-l-rose-500'
+                        : row.original.nurture.needsNurture
+                          ? 'bg-amber-50/30 dark:bg-amber-500/5 hover:bg-amber-50/50 dark:hover:bg-amber-500/10 border-l-amber-500'
+                          : 'hover:bg-slate-50/70 dark:hover:bg-dark-800/30 border-l-transparent'
+                        }`}
                     >
                       {row.getVisibleCells().map((cell) => (
                         <td key={cell.id} className="p-4 align-top text-sm text-slate-700 dark:text-slate-300">
