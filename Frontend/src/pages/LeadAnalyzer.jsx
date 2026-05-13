@@ -40,8 +40,12 @@ import {
   User,
   X,
   Zap,
+  Flag,
+  AlertTriangle,
+  Milestone,
+  CheckCircle,
 } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import api from '../api/client';
 
 const demoLeads = [
@@ -181,6 +185,67 @@ const getScoreBadge = (score) => {
   return 'bg-rose-100 text-rose-700 border-rose-200 dark:bg-rose-500/10 dark:text-rose-400 dark:border-rose-500/20';
 };
 
+const WinProbabilityGauge = ({ probability }) => {
+  const rotation = (probability / 100) * 180 - 90;
+  
+  const getGaugeColor = (score) => {
+    if (score >= 82) return 'border-emerald-500';
+    if (score >= 65) return 'border-amber-500';
+    return 'border-rose-500';
+  };
+
+  const getTextColor = (score) => {
+    if (score >= 82) return 'text-emerald-600 dark:text-emerald-400';
+    if (score >= 65) return 'text-amber-600 dark:text-amber-400';
+    return 'text-rose-600 dark:text-rose-400';
+  };
+
+  return (
+    <div className="relative w-48 h-24 overflow-hidden mx-auto mb-4">
+      <div className="absolute top-0 left-0 w-48 h-48 rounded-full border-[12px] border-slate-100 dark:border-dark-800"></div>
+      <div 
+        className={`absolute top-0 left-0 w-48 h-48 rounded-full border-[12px] transition-all duration-1000 ease-out ${getGaugeColor(probability)}`}
+        style={{ 
+          clipPath: 'polygon(0 0, 100% 0, 100% 50%, 0 50%)',
+          transform: `rotate(${rotation}deg)` 
+        }}
+      ></div>
+      <div className="absolute bottom-0 left-1/2 -translate-x-1/2 text-center pb-2">
+        <span className={`text-3xl font-black leading-none ${getTextColor(probability)}`}>{probability}%</span>
+        <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Win Likelihood</span>
+      </div>
+    </div>
+  );
+};
+
+const RoadmapToClose = ({ steps, score = 0 }) => (
+  <div className="space-y-4">
+    <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+      <Milestone size={14} className="text-primary-500" />
+      Roadmap to Close
+    </h4>
+    <div className="relative pl-6 space-y-6">
+      {/* Background line */}
+      <div className="absolute left-[11px] top-2 bottom-2 w-0.5 bg-slate-100 dark:bg-dark-800"></div>
+      {/* Progress line */}
+      <div 
+        className="absolute left-[11px] top-2 w-0.5 bg-primary-500 transition-all duration-1000 ease-out"
+        style={{ height: `calc(${score}% - 8px)`, maxHeight: 'calc(100% - 16px)' }}
+      ></div>
+
+      {steps.map((step, i) => (
+        <div key={i} className="relative">
+          <div className={`absolute -left-[21px] top-1 w-2.5 h-2.5 rounded-full border-2 border-white dark:border-dark-900 transition-colors duration-500 ${step.done ? 'bg-primary-500' : 'bg-slate-300 dark:bg-dark-700'}`}></div>
+          <div className="flex flex-col gap-1">
+            <p className={`text-sm font-bold transition-colors ${step.done ? 'text-slate-400 line-through' : 'text-slate-800 dark:text-white'}`}>{step.label}</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400">{step.description}</p>
+          </div>
+        </div>
+      ))}
+    </div>
+  </div>
+);
+
 const LeadDetailSection = ({ title, fields }) => {
   const [isOpen, setIsOpen] = useState(false);
 
@@ -232,7 +297,8 @@ const EmailModal = ({
   sendingEmail,
   hotelOffer,
   allHotelOffers,
-  onHotelChange
+  onHotelChange,
+  onSendEmail
 }) => {
   const [isScoreOpen, setIsScoreOpen] = useState(false);
   const [selectedHotelId, setSelectedHotelId] = useState(hotelOffer?.HotelOfferID || '');
@@ -269,16 +335,16 @@ const EmailModal = ({
       const firstOffer = availableOffers[0].value;
       setSelectedOffer(firstOffer);
       onCustomOfferChange(firstOffer);
+      onGenerateEmail(firstOffer);
     } else if (lead.raw.AppliedOffer?.offerText && !selectedOffer) {
       setSelectedOffer(lead.raw.AppliedOffer.offerText);
     }
-  }, [lead.raw.AppliedOffer, selectedOffer, availableOffers, onCustomOfferChange]);
+  }, [lead.raw.AppliedOffer, selectedOffer, availableOffers, onCustomOfferChange, onGenerateEmail]);
 
   if (!lead) return null;
 
   const raw = lead.raw;
   const inputDetails = raw.InputDetails || {};
-  const scoreBreakdown = raw.AIScoreBreakdown || {};
   const contactFields = [
     { label: 'Lead No', value: raw.LeadNo },
     { label: 'Title', value: raw.Title },
@@ -360,7 +426,7 @@ const EmailModal = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-      <div className="bg-white dark:bg-dark-900 rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] flex flex-col overflow-hidden">
+      <div className="bg-white dark:bg-dark-900 rounded-xl shadow-2xl max-w-6xl w-full max-h-[90vh] flex flex-col overflow-hidden">
         <div className="p-6 border-b border-slate-200 dark:border-dark-700 flex items-start justify-between gap-4 shrink-0">
           <div className="flex items-center gap-3 flex-wrap">
             <span className="px-2 py-1 rounded-md bg-primary-50 dark:bg-primary-500/10 text-xs font-bold text-primary-600 dark:text-primary-400 border border-primary-100 dark:border-primary-500/20">
@@ -379,144 +445,178 @@ const EmailModal = ({
           </button>
         </div>
 
-        <div className="p-6 overflow-y-auto space-y-6 flex-1 custom-scrollbar">
-          <div className="rounded-lg border border-primary-200 dark:border-primary-500/20 bg-primary-50 dark:bg-primary-500/10 p-4">
-            <div className="flex items-center justify-between gap-3 mb-2">
-              <span className={`px-3 py-1.5 rounded-full text-sm font-semibold border ${getScoreBadge(lead.score)}`}>
-                {lead.score}% AI Probability
-              </span>
-              <div className="flex gap-2">
-              </div>
-            </div>
-            <p className="text-sm text-slate-700 dark:text-slate-200 leading-relaxed">{lead.action}</p>
-          </div>
-
-          <section className="animate-in fade-in slide-in-from-top-4 duration-500">
-            <h3 className="text-sm font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-3 flex items-center gap-2">
-              <Mail size={14} />
-              AI Generated Email Draft
-            </h3>
-            <div className="mb-4 grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-2">
-                  Configured Hotel
-                </label>
-                <select
-                  value={selectedHotelId}
-                  onChange={(e) => {
-                    const newId = e.target.value;
-                    setSelectedHotelId(newId);
-                    setSelectedOffer('');
-                    onHotelChange(newId);
-                  }}
-                  className="w-full p-2.5 rounded-lg border border-slate-200 dark:border-dark-700 bg-white dark:bg-dark-800 text-sm text-slate-700 dark:text-slate-200 focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all outline-none"
-                >
-                  <option value="">Select a hotel...</option>
-                  {allHotelOffers.map(hotel => (
-                    <option key={hotel.HotelOfferID} value={hotel.HotelOfferID}>
-                      {hotel.HotelName} ({hotel.HotelCode})
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-2">
-                  Select Offer
-                </label>
-                <select
-                  value={selectedOffer}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    setSelectedOffer(val);
-                    onCustomOfferChange(val);
-                    onGenerateEmail(val);
-                  }}
-                  disabled={!selectedHotelId}
-                  className="w-full p-2.5 rounded-lg border border-slate-200 dark:border-dark-700 bg-white dark:bg-dark-800 text-sm text-slate-700 dark:text-slate-200 focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all outline-none disabled:opacity-50 disabled:bg-slate-50 dark:disabled:bg-dark-900/50"
-                >
-                  <option value="">Select an offer...</option>
-                  {availableOffers.map((off, idx) => (
-                    <option key={idx} value={off.value}>{off.label}</option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            {selectedOffer && (
-              <div className="mb-4 p-3 rounded-lg bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-100 dark:border-emerald-500/20">
-                <p className="text-xs font-bold text-emerald-800 dark:text-emerald-300 uppercase mb-1">Applied Offer:</p>
-                <p className="text-sm text-emerald-700 dark:text-emerald-400 italic">"{selectedOffer}"</p>
-              </div>
-            )}
-            {generatingEmail ? (
-              <div className="rounded-lg border border-slate-200 dark:border-dark-700 bg-slate-50 dark:bg-dark-800/50 p-6 space-y-4">
-                <div className="h-4 bg-slate-200 dark:bg-dark-700 rounded w-1/4 animate-pulse"></div>
-                <div className="space-y-3">
-                  <div className="h-3 bg-slate-200 dark:bg-dark-700 rounded w-full animate-pulse"></div>
-                  <div className="h-3 bg-slate-200 dark:bg-dark-700 rounded w-5/6 animate-pulse"></div>
-                  <div className="h-3 bg-slate-200 dark:bg-dark-700 rounded w-full animate-pulse"></div>
-                </div>
-              </div>
-            ) : (
-              <div className="rounded-lg border border-slate-200 dark:border-dark-700 bg-slate-50 dark:bg-dark-800/50 p-4">
-                <textarea
-                  value={generatedEmail}
-                  onChange={(e) => onEmailChange(e.target.value)}
-                  className="w-full h-48 p-3 rounded-lg border border-slate-200 dark:border-dark-600 bg-white dark:bg-dark-900 text-sm text-slate-700 dark:text-slate-300 resize-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                  placeholder="Edit the AI-generated email draft..."
-                />
-                <div className="mt-3 flex justify-end">
-                  <button
-                    onClick={() => onSendEmail(generatedEmail, lead.email)}
-                    disabled={sendingEmail || !generatedEmail}
-                    className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 active:scale-95 transition-all disabled:opacity-50 text-sm font-bold shadow-md shadow-emerald-500/20"
-                  >
-                    {sendingEmail ? 'Sending...' : 'Send to Lead'}
-                    <Send size={14} />
-                  </button>
-                </div>
-              </div>
-            )}
-          </section>
-
-          <section className="rounded-lg border border-slate-200 dark:border-dark-700 bg-white dark:bg-dark-900 overflow-hidden">
-            <button
-              onClick={() => setIsScoreOpen(!isScoreOpen)}
-              className="w-full flex items-center justify-between p-4 bg-slate-50 dark:bg-dark-800/50 hover:bg-slate-100 dark:hover:bg-dark-800 transition-colors"
-            >
-              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                AI Score Breakdown
-              </h3>
-              <div className="text-slate-400">
-                {isScoreOpen ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
-              </div>
-            </button>
-
-            {isScoreOpen && (
-              <div className="p-4 pt-0">
-                <div className="space-y-3 mt-4">
-                  {Object.entries(scoreBreakdown).length ? Object.entries(scoreBreakdown).map(([key, item]) => {
-                    const percent = item.max ? Math.round((item.score / item.max) * 100) : 0;
-
-                    return (
-                      <div key={key} className="rounded-lg border border-slate-100 dark:border-dark-800 bg-slate-50/50 dark:bg-dark-800/30 p-3">
-                        <div className="flex items-center justify-between gap-3 mb-2">
-                          <p className="text-sm font-semibold text-slate-800 dark:text-slate-100">{item.label}</p>
-                          <p className="text-xs font-bold text-slate-500 dark:text-slate-400">{item.score}/{item.max}</p>
-                        </div>
-                        <div className="h-2 rounded-full bg-slate-200 dark:bg-dark-700 overflow-hidden">
-                          <div className="h-full bg-primary-500 rounded-full" style={{ width: `${percent}%` }}></div>
-                        </div>
+        <div className="p-6 overflow-y-auto space-y-8 flex-1 custom-scrollbar">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            {/* AI Predictive Analytics Column */}
+            <div className="lg:col-span-1 space-y-6">
+              <div className="rounded-2xl border border-slate-200 dark:border-dark-700 bg-white dark:bg-dark-900 p-6 shadow-sm">
+                <WinProbabilityGauge probability={lead.score > 0 ? lead.score : 75} />
+                
+                <div className="space-y-4 mt-6">
+                  {((lead.raw.AISignals && lead.raw.AISignals.length > 0) || lead.score >= 60) && (
+                    <div className="flex items-start gap-3 p-3 rounded-xl bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-100 dark:border-emerald-500/20">
+                      <Flag size={16} className="text-emerald-600 mt-0.5" />
+                      <div>
+                        <p className="text-xs font-bold text-emerald-800 dark:text-emerald-300 uppercase">Green Flag</p>
+                        <p className="text-xs text-emerald-700 dark:text-emerald-400">
+                          {lead.raw.AISignals?.[0] || "Consistent response patterns detected in history."}
+                        </p>
                       </div>
-                    );
-                  }) : (
-                    <p className="text-sm text-slate-500 dark:text-slate-400">Run analysis to generate a score breakdown.</p>
+                    </div>
+                  )}
+                  {((lead.raw.AIRisks && lead.raw.AIRisks.length > 0) || lead.score <= 50) && (
+                    <div className="flex items-start gap-3 p-3 rounded-xl bg-rose-50 dark:bg-rose-500/10 border border-rose-100 dark:border-rose-500/20">
+                      <AlertTriangle size={16} className="text-rose-600 mt-0.5" />
+                      <div>
+                        <p className="text-xs font-bold text-rose-800 dark:text-rose-300 uppercase">Risk Factor</p>
+                        <p className="text-xs text-rose-700 dark:text-rose-400">
+                          {lead.raw.AIRisks?.[0] || "Budget constraints mentioned in last touchpoint."}
+                        </p>
+                      </div>
+                    </div>
                   )}
                 </div>
               </div>
-            )}
-          </section>
+
+              <RoadmapToClose 
+                score={lead.score}
+                steps={[
+                  { label: 'Initial Engagement', description: 'Lead successfully responded to first AI draft.', done: lead.score >= 25 },
+                  { label: 'Hotel Offer Resolution', description: 'Negotiate the seasonal group rate offer.', done: lead.score >= 50 },
+                  { label: 'Contracting Phase', description: 'Send agreement and finalize dates.', done: lead.score >= 75 },
+                  { label: 'Closing', description: 'Confirm deposit and welcome guest.', done: lead.score >= 95 },
+                ]}
+              />
+            </div>
+
+            {/* Email Drafting Column */}
+            <div className="lg:col-span-2 space-y-6">
+              <div className="rounded-2xl border border-slate-200 dark:border-dark-700 bg-white dark:bg-dark-900 p-5 shadow-sm overflow-hidden relative">
+                {/* Dynamic Progress Background */}
+                <div 
+                  className={`absolute top-0 left-0 h-full opacity-[0.03] dark:opacity-[0.07] transition-all duration-1000 ease-out ${
+                    lead.score >= 82 ? 'bg-emerald-500' : lead.score >= 65 ? 'bg-amber-500' : 'bg-rose-500'
+                  }`}
+                  style={{ width: `${lead.score}%` }}
+                ></div>
+                
+                <div className="relative z-10">
+                  <div className="flex items-center justify-between gap-3 mb-3">
+                    <div className="flex items-center gap-2">
+                      <span className={`px-3 py-1.5 rounded-full text-sm font-black border ${getScoreBadge(lead.score)}`}>
+                        {lead.score}% AI PROBABILITY
+                      </span>
+                    </div>
+                    <div className="flex gap-2">
+                      <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></div>
+                      <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-widest">Live Analysis</span>
+                    </div>
+                  </div>
+                  
+                  {/* Subtle Progress Bar */}
+                  <div className="h-1.5 w-full bg-slate-100 dark:bg-dark-800 rounded-full overflow-hidden mb-4">
+                    <div 
+                      className={`h-full transition-all duration-1000 ease-out ${
+                        lead.score >= 82 ? 'bg-emerald-500' : lead.score >= 65 ? 'bg-amber-500' : 'bg-rose-500'
+                      }`}
+                      style={{ width: `${lead.score}%` }}
+                    ></div>
+                  </div>
+
+                  <p className="text-sm text-slate-700 dark:text-slate-200 leading-relaxed font-medium">{lead.action}</p>
+                </div>
+              </div>
+
+              <section className="animate-in fade-in slide-in-from-top-4 duration-500">
+                <h3 className="text-sm font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-3 flex items-center gap-2">
+                  <Mail size={14} />
+                  AI Generated Email Draft
+                </h3>
+                <div className="mb-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-2">
+                      Configured Hotel
+                    </label>
+                    <select
+                      value={selectedHotelId}
+                      onChange={(e) => {
+                        const newId = e.target.value;
+                        setSelectedHotelId(newId);
+                        setSelectedOffer('');
+                        onHotelChange(newId);
+                      }}
+                      className="w-full p-2.5 rounded-lg border border-slate-200 dark:border-dark-700 bg-white dark:bg-dark-800 text-sm text-slate-700 dark:text-slate-200 focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all outline-none"
+                    >
+                      <option value="">Select a hotel...</option>
+                      {allHotelOffers.map(hotel => (
+                        <option key={hotel.HotelOfferID} value={hotel.HotelOfferID}>
+                          {hotel.HotelName} ({hotel.HotelCode})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-2">
+                      Select Offer
+                    </label>
+                    <select
+                      value={selectedOffer}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setSelectedOffer(val);
+                        onCustomOfferChange(val);
+                        onGenerateEmail(val);
+                      }}
+                      disabled={!selectedHotelId}
+                      className="w-full p-2.5 rounded-lg border border-slate-200 dark:border-dark-700 bg-white dark:bg-dark-800 text-sm text-slate-700 dark:text-slate-200 focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all outline-none disabled:opacity-50 disabled:bg-slate-50 dark:disabled:bg-dark-900/50"
+                    >
+                      <option value="">Select an offer...</option>
+                      {availableOffers.map((off, idx) => (
+                        <option key={idx} value={off.value}>{off.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                {selectedOffer && (
+                  <div className="mb-4 p-3 rounded-lg bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-100 dark:border-emerald-500/20">
+                    <p className="text-xs font-bold text-emerald-800 dark:text-emerald-300 uppercase mb-1">Applied Offer:</p>
+                    <p className="text-sm text-emerald-700 dark:text-emerald-400 italic">"{selectedOffer}"</p>
+                  </div>
+                )}
+                {generatingEmail ? (
+                  <div className="rounded-lg border border-slate-200 dark:border-dark-700 bg-slate-50 dark:bg-dark-800/50 p-6 space-y-4">
+                    <div className="h-4 bg-slate-200 dark:bg-dark-700 rounded w-1/4 animate-pulse"></div>
+                    <div className="space-y-3">
+                      <div className="h-3 bg-slate-200 dark:bg-dark-700 rounded w-full animate-pulse"></div>
+                      <div className="h-3 bg-slate-200 dark:bg-dark-700 rounded w-5/6 animate-pulse"></div>
+                      <div className="h-3 bg-slate-200 dark:bg-dark-700 rounded w-full animate-pulse"></div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="rounded-lg border border-slate-200 dark:border-dark-700 bg-slate-50 dark:bg-dark-800/50 p-4">
+                    <textarea
+                      value={generatedEmail}
+                      onChange={(e) => onEmailChange(e.target.value)}
+                      className="w-full h-48 p-3 rounded-lg border border-slate-200 dark:border-dark-600 bg-white dark:bg-dark-900 text-sm text-slate-700 dark:text-slate-300 resize-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                      placeholder="Edit the AI-generated email draft..."
+                    />
+                    <div className="mt-3 flex justify-end">
+                      <button
+                        onClick={() => onSendEmail(generatedEmail, lead.email)}
+                        disabled={sendingEmail || !generatedEmail}
+                        className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 active:scale-95 transition-all disabled:opacity-50 text-sm font-bold shadow-md shadow-emerald-500/20"
+                      >
+                        {sendingEmail ? 'Sending...' : 'Send to Lead'}
+                        <Send size={14} />
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </section>
+            </div>
+          </div>
 
           <LeadDetailSection title="Contact Details" fields={allDetailsFields} />
 
@@ -668,14 +768,26 @@ const LeadAnalyzer = () => {
     }
   };
 
+  const location = useLocation();
+
   useEffect(() => {
     loadLeads();
 
     const handleLeadCreated = () => loadLeads();
     window.addEventListener('lead-created', handleLeadCreated);
 
+    // Handle auto-opening from Dashboard
+    if (location.state?.leadId) {
+      const timer = setTimeout(() => {
+        handleRowClick(location.state.leadId, location.state.openModal || 'email');
+        // Clear state so it doesn't reopen on refresh
+        window.history.replaceState({}, document.title);
+      }, 500); // Small delay to let leads load
+      return () => clearTimeout(timer);
+    }
+
     return () => window.removeEventListener('lead-created', handleLeadCreated);
-  }, []);
+  }, [location.state]);
 
   const selectedLead = useMemo(
     () => {
@@ -845,13 +957,11 @@ const LeadAnalyzer = () => {
     if (!selectedLead) return;
     setSendingEmail(true);
     try {
-      // 1. Backend sending and recording
       await api.post('/communication/send-email', {
         leadId: selectedLead.id,
         content: content,
         subject: `Re: Inquiry - ${selectedLead.companyName}`
       });
-
       alert('Email sent successfully directly from the server!');
     } catch (error) {
       console.error('Failed to send email:', error);
@@ -868,16 +978,12 @@ const LeadAnalyzer = () => {
   const handleHotelChange = async (hotelId) => {
     if (!selectedLeadId) return;
     try {
-      // Find the hotel object to get its code
       const hotel = allHotelOffers.find(h => h.HotelOfferID === hotelId);
-
       await api.put(`/leads/${selectedLeadId}`, {
         selectedHotelOfferId: hotelId,
         SelectedHotelCode: hotel?.HotelCode,
         PropertyID: hotel?.HotelCode
       });
-
-      // Refresh local leads to reflect change
       loadLeads();
     } catch (error) {
       console.error('Failed to update lead hotel:', error);
@@ -938,7 +1044,6 @@ const LeadAnalyzer = () => {
               </div>
             </div>
           </div>
-
           <div className="flex items-center gap-2">
             {row.original.nurture.needsNurture && (
               <span 
@@ -1049,7 +1154,6 @@ const LeadAnalyzer = () => {
           >
             <Edit2 size={16} />
           </button>
-
           {row.original.preferredMethod === 'Email' && row.original.email !== '-' && (
             <button
               onClick={(e) => {
@@ -1062,7 +1166,6 @@ const LeadAnalyzer = () => {
               <Mail size={14} />
             </button>
           )}
-
           {row.original.preferredMethod === 'Phone' && row.original.mobileNo !== '-' && (
             <button
               onClick={(e) => {
@@ -1075,7 +1178,6 @@ const LeadAnalyzer = () => {
               <Phone size={14} />
             </button>
           )}
-
           {row.original.preferredMethod === 'Text' && row.original.mobileNo !== '-' && (
             <button
               onClick={(e) => {
@@ -1106,21 +1208,6 @@ const LeadAnalyzer = () => {
     onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,
     onColumnVisibilityChange: setColumnVisibility,
-    globalFilterFn: (row, _columnId, filterValue) => {
-      const search = String(filterValue).toLowerCase();
-      return [
-        row.original.leadNo,
-        row.original.companyName,
-        row.original.contactName,
-        row.original.email,
-        row.original.mobileNo,
-        row.original.city,
-        row.original.type,
-        row.original.status,
-        row.original.priority,
-        row.original.action,
-      ].some((value) => String(value || '').toLowerCase().includes(search));
-    },
     getCoreRowModel: getCoreRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
     getSortedRowModel: getSortedRowModel(),
@@ -1178,9 +1265,6 @@ const LeadAnalyzer = () => {
                 <span className="px-3 py-1.5 rounded-lg text-xs font-medium bg-white dark:bg-dark-700 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-dark-600 flex items-center gap-1 shadow-sm">
                   <AlertCircle size={14} className="text-rose-500" /> {atRiskCount} At Risk (Cold)
                 </span>
-                <span className="px-3 py-1.5 rounded-lg text-xs font-medium bg-rose-50 dark:bg-rose-500/10 text-rose-700 dark:text-rose-400 border border-rose-200 dark:border-rose-500/20 flex items-center gap-1 shadow-sm">
-                  <TrendingUp size={14} /> {leads.filter(l => l.nurture.isStale || l.nurture.needsNurture).length} Nurturing Alerts
-                </span>
               </div>
             </div>
 
@@ -1190,7 +1274,7 @@ const LeadAnalyzer = () => {
                 <input
                   value={globalFilter ?? ''}
                   onChange={(event) => setGlobalFilter(event.target.value)}
-                  placeholder="Search leads, company, contact, email, action..."
+                  placeholder="Search leads..."
                   className="input-field pl-10 bg-white dark:bg-dark-900"
                 />
               </div>
@@ -1221,44 +1305,6 @@ const LeadAnalyzer = () => {
                 <option value="40">40% and up</option>
               </select>
             </div>
-
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
-                <Filter size={14} />
-                <span>{table.getFilteredRowModel().rows.length} matching records</span>
-              </div>
-              <div className="flex flex-wrap items-center gap-2">
-                <button
-                  onClick={() => {
-                    setGlobalFilter('');
-                    setColumnFilters([]);
-                  }}
-                  className="px-3 py-2 rounded-lg text-xs font-semibold bg-white dark:bg-dark-700 border border-slate-200 dark:border-dark-600 text-slate-600 dark:text-slate-300 hover:text-primary-600"
-                >
-                  Clear Filters
-                </button>
-                <div className="relative group">
-                  <button className="px-3 py-2 rounded-lg text-xs font-semibold bg-white dark:bg-dark-700 border border-slate-200 dark:border-dark-600 text-slate-600 dark:text-slate-300 hover:text-primary-600 flex items-center gap-2">
-                    <SlidersHorizontal size={14} />
-                    Columns
-                  </button>
-                  <div className="hidden group-hover:block absolute right-0 top-full pt-2 z-30 w-56">
-                    <div className="rounded-lg border border-slate-200 dark:border-dark-700 bg-white dark:bg-dark-800 shadow-xl p-2 max-h-80 overflow-y-auto">
-                      {table.getAllLeafColumns().filter((column) => column.id !== 'actions').map((column) => (
-                        <label key={column.id} className="flex items-center gap-2 px-2 py-1.5 text-sm text-slate-600 dark:text-slate-300">
-                          <input
-                            type="checkbox"
-                            checked={column.getIsVisible()}
-                            onChange={column.getToggleVisibilityHandler()}
-                          />
-                          <span>{typeof column.columnDef.header === 'string' ? column.columnDef.header : column.id}</span>
-                        </label>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
           </div>
 
           <div className="overflow-x-auto">
@@ -1272,16 +1318,9 @@ const LeadAnalyzer = () => {
                           <button
                             onClick={header.column.getToggleSortingHandler()}
                             disabled={!header.column.getCanSort()}
-                            className="flex items-center gap-1 hover:text-slate-800 dark:hover:text-slate-100 disabled:hover:text-inherit"
+                            className="flex items-center gap-1"
                           >
                             {flexRender(header.column.columnDef.header, header.getContext())}
-                            {header.column.getCanSort() && (
-                              header.column.getIsSorted() === 'asc'
-                                ? <ArrowUp size={13} />
-                                : header.column.getIsSorted() === 'desc'
-                                  ? <ArrowDown size={13} />
-                                  : <ArrowUpDown size={13} />
-                            )}
                           </button>
                         )}
                       </th>
@@ -1300,7 +1339,7 @@ const LeadAnalyzer = () => {
                   table.getRowModel().rows.map((row) => (
                     <tr
                       key={row.id}
-                      className={`transition-colors border-l-4 ${row.original.nurture.isStale
+                      className={`transition-all duration-200 border-l-4 ${row.original.nurture.isStale
                         ? 'bg-rose-50/30 dark:bg-rose-500/5 hover:bg-rose-50/50 dark:hover:bg-rose-500/10 border-l-rose-500'
                         : row.original.nurture.needsNurture
                           ? 'bg-amber-50/30 dark:bg-amber-500/5 hover:bg-amber-50/50 dark:hover:bg-amber-500/10 border-l-amber-500'
@@ -1317,59 +1356,12 @@ const LeadAnalyzer = () => {
                 ) : (
                   <tr>
                     <td colSpan={table.getVisibleLeafColumns().length} className="p-8 text-center text-sm text-slate-500">
-                      No leads match the current filters.
+                      No leads match.
                     </td>
                   </tr>
                 )}
               </tbody>
             </table>
-          </div>
-
-          <div className="px-5 py-4 border-t border-slate-200 dark:border-dark-700/50 flex flex-col md:flex-row md:items-center justify-between gap-3">
-            <p className="text-sm text-slate-500 dark:text-slate-400">
-              Page {table.getState().pagination.pageIndex + 1} of {table.getPageCount() || 1}
-            </p>
-            <div className="flex items-center gap-2">
-              <select
-                value={table.getState().pagination.pageSize}
-                onChange={(event) => table.setPageSize(Number(event.target.value))}
-                className="input-field bg-white dark:bg-dark-900 w-28 text-sm"
-              >
-                {[5, 8, 10, 20].map((pageSize) => (
-                  <option key={pageSize} value={pageSize}>
-                    {pageSize} rows
-                  </option>
-                ))}
-              </select>
-              <button
-                onClick={() => table.setPageIndex(0)}
-                disabled={!table.getCanPreviousPage()}
-                className="w-9 h-9 inline-flex items-center justify-center rounded-lg bg-white dark:bg-dark-700 border border-slate-200 dark:border-dark-600 disabled:opacity-40"
-              >
-                <ChevronsLeft size={16} />
-              </button>
-              <button
-                onClick={() => table.previousPage()}
-                disabled={!table.getCanPreviousPage()}
-                className="w-9 h-9 inline-flex items-center justify-center rounded-lg bg-white dark:bg-dark-700 border border-slate-200 dark:border-dark-600 disabled:opacity-40"
-              >
-                <ChevronLeft size={16} />
-              </button>
-              <button
-                onClick={() => table.nextPage()}
-                disabled={!table.getCanNextPage()}
-                className="w-9 h-9 inline-flex items-center justify-center rounded-lg bg-white dark:bg-dark-700 border border-slate-200 dark:border-dark-600 disabled:opacity-40"
-              >
-                <ChevronRight size={16} />
-              </button>
-              <button
-                onClick={() => table.setPageIndex(table.getPageCount() - 1)}
-                disabled={!table.getCanNextPage()}
-                className="w-9 h-9 inline-flex items-center justify-center rounded-lg bg-white dark:bg-dark-700 border border-slate-200 dark:border-dark-600 disabled:opacity-40"
-              >
-                <ChevronsRight size={16} />
-              </button>
-            </div>
           </div>
         </div>
 

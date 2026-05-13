@@ -61,6 +61,7 @@ export const getDashboardStats = async (req, res, next) => {
       },
       aiPerformance: aiChartData,
       nextActions: nextActions.map(l => ({
+        id: l._id || l.LeadID,
         company: l.CompanyName || 'Unknown',
         action: l.AIRecommendation || l.Comment || 'Review lead',
         time: l.LastActivityDate ? new Date(l.LastActivityDate).toLocaleDateString() : 'New',
