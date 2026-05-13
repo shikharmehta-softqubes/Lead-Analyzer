@@ -1,0 +1,1208 @@
+import React, { useEffect, useMemo, useState } from 'react';
+import {
+  flexRender,
+  getCoreRowModel,
+  getFilteredRowModel,
+  getPaginationRowModel,
+  getSortedRowModel,
+  useReactTable,
+} from '@tanstack/react-table';
+import {
+  AlertCircle,
+  ArrowDown,
+  ArrowUp,
+  ArrowUpDown,
+  BarChart3,
+  ChevronLeft,
+  ChevronRight,
+  ChevronDown,
+  ChevronsLeft,
+  ChevronsRight,
+  ClipboardList,
+  Copy,
+  Check,
+  Edit2,
+  Eye,
+  FileText,
+  Filter,
+  LayoutList,
+  Mail,
+  MessageSquare,
+  Plus,
+  Search,
+  Send,
+  SlidersHorizontal,
+  Target,
+  Trash2,
+  TrendingUp,
+  X,
+  Zap,
+} from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import api from '../api/client';
+
+const demoLeads = [
+  {
+    LeadID: 'DEMO-10001',
+    LeadNo: 'LEAD-10001',
+    CompanyName: 'TechVision Global',
+    FirstName: 'Sarah',
+    LastName: 'Connor',
+    MobileNo: '+1 (555) 010-1001',
+    Email: 'sarah@techvision.example',
+    City: 'Austin',
+    State: 'Texas',
+    Country: 'USA',
+    Lead_Status_Term: 'Analyzing',
+    Status: 'Pending',
+    Lead_Source_Term: 'RFP',
+    LeadRatings: 85,
+    Priority: 'High',
+    Comment: 'Analyzing engagement patterns and proposal fit.',
+    GroupType: 'Corporate',
+    SubmittedBy: 'Website',
+    CreatedOn: new Date().toISOString(),
+    IsActive: true,
+  },
+  {
+    LeadID: 'DEMO-10002',
+    LeadNo: 'LEAD-10002',
+    CompanyName: 'Summit Group',
+    FirstName: 'Mike',
+    LastName: 'Johnson',
+    MobileNo: '+1 (555) 010-1002',
+    Email: 'mike@summit.example',
+    City: 'Denver',
+    State: 'Colorado',
+    Country: 'USA',
+    Lead_Status_Term: 'Scored',
+    Status: 'Follow-up',
+    Lead_Source_Term: 'Group Deal',
+    LeadRatings: 62,
+    Priority: 'Medium',
+    Comment: 'Send updated pricing sheet.',
+    GroupType: 'Association',
+    SubmittedBy: 'Email',
+    CreatedOn: new Date().toISOString(),
+    IsActive: true,
+  },
+];
+
+const formatDate = (value) => {
+  if (!value) return '-';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleDateString(undefined, {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+  });
+};
+
+const displayValue = (value) => {
+  if (value === true) return 'Yes';
+  if (value === false) return 'No';
+  if (value === null || value === undefined || value === '') return '-';
+  return value;
+};
+
+const normalizeLead = (lead, index) => ({
+  id: lead.LeadID || lead._id || `TEMP-${index + 1}`,
+  leadNo: lead.LeadNo || `LEAD-${index + 1}`,
+  companyName: lead.CompanyName || 'Unnamed Company',
+  contactName: [lead.FirstName, lead.LastName].filter(Boolean).join(' ') || 'Unnamed Contact',
+  email: lead.Email || '-',
+  mobileNo: lead.MobileNo || lead.TelephoneNo || '-',
+  city: [lead.City, lead.State, lead.Country].filter(Boolean).join(', ') || '-',
+  type: lead.GroupType || lead.Lead_Source_Term || 'Lead',
+  source: lead.Lead_Source_Term || '-',
+  status: lead.Status || 'Pending',
+  priority: lead.Priority || 'Standard',
+  score: Number(lead.LeadRatings || 0),
+  action: lead.AIRecommendation || lead.Comment || 'Run AI analysis for recommended next action.',
+  createdOn: lead.CreatedOn,
+  lastActivityDate: lead.LastActivityDate,
+  isActive: lead.IsActive,
+  raw: lead,
+});
+
+const getScoreBadge = (score) => {
+  if (score >= 82) {
+    return 'bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/20';
+  }
+  if (score >= 65) {
+    return 'bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/20';
+  }
+  return 'bg-rose-100 text-rose-700 border-rose-200 dark:bg-rose-500/10 dark:text-rose-400 dark:border-rose-500/20';
+};
+
+const LeadDetailSection = ({ title, fields }) => {
+  const [isOpen, setIsOpen] = useState(false);
+
+  return (
+    <section className="rounded-lg border border-slate-200 dark:border-dark-700 bg-white dark:bg-dark-900 overflow-hidden">
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className="w-full flex items-center justify-between p-4 bg-slate-50 dark:bg-dark-800/50 hover:bg-slate-100 dark:hover:bg-dark-800 transition-colors"
+      >
+        <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+          {title}
+        </h3>
+        <div className="text-slate-400">
+          {isOpen ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
+        </div>
+      </button>
+      
+      {isOpen && (
+        <div className="p-4 pt-0">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4">
+            {fields.map((field) => (
+              <div key={field.label} className="rounded-lg border border-slate-100 dark:border-dark-800 bg-slate-50/50 dark:bg-dark-800/30 p-3">
+                <p className="text-xs text-slate-500 dark:text-slate-400 mb-1">{field.label}</p>
+                <p className="text-sm font-medium text-slate-800 dark:text-slate-100 break-words">
+                  {displayValue(field.value)}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </section>
+  );
+};
+
+const LeadDetailView = ({ 
+  lead, 
+  onClose, 
+  onAnalyze, 
+  analyzingId, 
+  onGenerateEmail, 
+  generatingEmail, 
+  generatedEmail, 
+  onEmailChange,
+  customOffer,
+  onCustomOfferChange,
+  generatingSms,
+  generatedSms,
+  sendingEmail,
+  hotelOffer,
+  allHotelOffers,
+  onHotelChange
+}) => {
+  const [isScoreOpen, setIsScoreOpen] = useState(false);
+  const [selectedHotelId, setSelectedHotelId] = useState(hotelOffer?.HotelOfferID || '');
+  const [selectedOffer, setSelectedOffer] = useState('');
+
+  const currentHotel = allHotelOffers.find(h => h.HotelOfferID === selectedHotelId) || hotelOffer;
+
+  const availableOffers = useMemo(() => {
+    if (!currentHotel) return [];
+    const offers = [];
+    if (currentHotel.DefaultOffer) {
+      offers.push({ label: 'Default Offer', value: currentHotel.DefaultOffer });
+    }
+    const rule = currentHotel.OfferRules?.find(r => r.leadSegment === lead.raw.AISegment);
+    if (rule) {
+      if (rule.initialOffer) offers.push({ label: 'Initial Lead Offer', value: rule.initialOffer });
+      if (rule.followUpOffer) offers.push({ label: 'Follow-up Offer', value: rule.followUpOffer });
+    }
+    return offers;
+  }, [currentHotel, lead.raw.AISegment]);
+
+  useEffect(() => {
+    if (!selectedHotelId && allHotelOffers.length > 0) {
+      const firstHotel = allHotelOffers[0];
+      setSelectedHotelId(firstHotel.HotelOfferID);
+      onHotelChange(firstHotel.HotelOfferID);
+    } else if (hotelOffer?.HotelOfferID && !selectedHotelId) {
+      setSelectedHotelId(hotelOffer.HotelOfferID);
+    }
+  }, [hotelOffer, selectedHotelId, allHotelOffers, onHotelChange]);
+
+  useEffect(() => {
+    if (!selectedOffer && availableOffers.length > 0) {
+      const firstOffer = availableOffers[0].value;
+      setSelectedOffer(firstOffer);
+      onCustomOfferChange(firstOffer);
+      setTimeout(() => onGenerateEmail(), 50);
+    } else if (lead.raw.AppliedOffer?.offerText && !selectedOffer) {
+      setSelectedOffer(lead.raw.AppliedOffer.offerText);
+    }
+  }, [lead.raw.AppliedOffer, selectedOffer, availableOffers, onCustomOfferChange, onGenerateEmail]);
+
+  if (!lead) return null;
+
+  const raw = lead.raw;
+  const inputDetails = raw.InputDetails || {};
+  const scoreBreakdown = raw.AIScoreBreakdown || {};
+  const aiSignals = raw.AISignals || [];
+  const aiRisks = raw.AIRisks || [];
+  const contactFields = [
+    { label: 'Lead No', value: raw.LeadNo },
+    { label: 'Title', value: raw.Title },
+    { label: 'First Name', value: raw.FirstName },
+    { label: 'Last Name', value: raw.LastName },
+    { label: 'Company Name', value: raw.CompanyName },
+    { label: 'Email', value: raw.Email },
+    { label: 'Telephone No', value: raw.TelephoneNo },
+    { label: 'Mobile No', value: raw.MobileNo },
+    { label: 'Website', value: raw.Website },
+    { label: 'Ext', value: raw.Ext },
+  ];
+
+  const addressFields = [
+    { label: 'Address', value: raw.Address },
+    { label: 'Street', value: raw.Street },
+    { label: 'City', value: raw.City },
+    { label: 'State', value: raw.State },
+    { label: 'Country', value: raw.Country },
+    { label: 'Zipcode', value: raw.Zipcode },
+  ];
+
+  const crmFields = [
+    { label: 'Lead Status', value: raw.Status || 'Pending' },
+    { label: 'AI Processing Status', value: raw.Lead_Status_Term },
+    { label: 'Lead Source', value: raw.Lead_Source_Term },
+    { label: 'Lead Rating', value: raw.LeadRatings ? `${raw.LeadRatings}%` : raw.LeadRatings },
+    { label: 'AI Segment', value: raw.AISegment },
+    { label: 'AI Score Updated', value: formatDate(raw.AIScoreUpdatedOn) },
+    { label: 'Priority', value: raw.Priority },
+    { label: 'Is Active', value: raw.IsActive },
+    { label: 'Is Converted Account', value: raw.IsConvertAcc },
+    { label: 'Is Group', value: raw.IsGroup },
+    { label: 'Group Type', value: raw.GroupType },
+    { label: 'Submitted By', value: raw.SubmittedBy },
+    { label: 'Seq No', value: raw.SeqNo },
+  ];
+
+  const ownershipFields = [
+    { label: 'Client ID', value: raw.ClientID },
+    { label: 'Owner ID', value: raw.OwnerID },
+    { label: 'Account ID', value: raw.AccountID },
+    { label: 'Property ID', value: raw.PropertyID },
+    { label: 'Territerly ID', value: raw.TerriterlyID },
+    { label: 'DOS ID', value: raw.DOSID },
+    { label: 'Reference Item', value: raw.ReferenceItem },
+    { label: 'Reference By', value: raw.ReferenceBy },
+  ];
+
+  const timelineFields = [
+    { label: 'Created On', value: formatDate(raw.CreatedOn) },
+    { label: 'Last Contacted On', value: formatDate(raw.LastContactedOn) },
+    { label: 'Last Contacted By', value: raw.LastContactedBy },
+    { label: 'Last Activity Date', value: formatDate(raw.LastActivityDate) },
+    { label: 'Thread ID', value: raw.ThreadID },
+    { label: 'Thread Update On', value: formatDate(raw.ThreadUpdateOn) },
+  ];
+
+  const inputFields = [
+    { label: 'Event Purpose', value: inputDetails.eventPurpose },
+    { label: 'Guest Count', value: inputDetails.guestCount },
+    { label: 'Rooms Count', value: inputDetails.roomsCount },
+    { label: 'Start Date', value: formatDate(inputDetails.startDate) },
+    { label: 'End Date', value: formatDate(inputDetails.endDate) },
+    { label: 'Budget Range', value: inputDetails.budgetRange },
+    { label: 'Preferred Location', value: inputDetails.preferredLocation },
+    { label: 'Decision Timeline', value: inputDetails.decisionTimeline },
+    { label: 'Contact Method', value: inputDetails.contactMethod },
+  ];
+
+  const allDetailsFields = [
+    ...contactFields,
+    ...inputFields,
+    ...addressFields,
+    ...crmFields,
+    ...ownershipFields,
+    ...timelineFields,
+  ];
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+      <div className="bg-white dark:bg-dark-900 rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] flex flex-col overflow-hidden">
+        <div className="p-6 border-b border-slate-200 dark:border-dark-700 flex items-start justify-between gap-4 shrink-0">
+          <div className="flex items-center gap-3 flex-wrap">
+            <span className="px-2 py-1 rounded-md bg-primary-50 dark:bg-primary-500/10 text-xs font-bold text-primary-600 dark:text-primary-400 border border-primary-100 dark:border-primary-500/20">
+              {lead.leadNo}
+            </span>
+            <h2 className="text-xl font-bold text-slate-900 dark:text-white">{lead.companyName}</h2>
+            <span className="text-slate-300 dark:text-slate-600">|</span>
+            <p className="text-lg text-slate-500 dark:text-slate-400">{lead.contactName}</p>
+          </div>
+          <button
+            onClick={onClose}
+            className="p-2 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-dark-800"
+            title="Close modal"
+          >
+            <X size={20} />
+          </button>
+        </div>
+
+        <div className="p-6 overflow-y-auto space-y-6 flex-1 custom-scrollbar">
+          <div className="rounded-lg border border-primary-200 dark:border-primary-500/20 bg-primary-50 dark:bg-primary-500/10 p-4">
+            <div className="flex items-center justify-between gap-3 mb-2">
+              <span className={`px-3 py-1.5 rounded-full text-sm font-semibold border ${getScoreBadge(lead.score)}`}>
+                {lead.score}% AI Probability
+              </span>
+              <div className="flex gap-2">
+              </div>
+            </div>
+            <p className="text-sm text-slate-700 dark:text-slate-200 leading-relaxed">{lead.action}</p>
+          </div>
+
+          {(generatingEmail || generatedEmail) && (
+            <section className="animate-in fade-in slide-in-from-top-4 duration-500">
+              <h3 className="text-sm font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-3 flex items-center gap-2">
+                <Mail size={14} />
+                AI Generated Email Draft
+              </h3>
+              <div className="mb-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-2">
+                    Configured Hotel
+                  </label>
+                  <select
+                    value={selectedHotelId}
+                    onChange={(e) => {
+                      const newId = e.target.value;
+                      setSelectedHotelId(newId);
+                      setSelectedOffer('');
+                      onHotelChange(newId);
+                    }}
+                    className="w-full p-2.5 rounded-lg border border-slate-200 dark:border-dark-700 bg-white dark:bg-dark-800 text-sm text-slate-700 dark:text-slate-200 focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all outline-none"
+                  >
+                    <option value="">Select a hotel...</option>
+                    {allHotelOffers.map(hotel => (
+                      <option key={hotel.HotelOfferID} value={hotel.HotelOfferID}>
+                        {hotel.HotelName} ({hotel.HotelCode})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-2">
+                    Select Offer
+                  </label>
+                  <select
+                    value={selectedOffer}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setSelectedOffer(val);
+                      onCustomOfferChange(val);
+                      setTimeout(() => onGenerateEmail(), 50);
+                    }}
+                    disabled={!selectedHotelId}
+                    className="w-full p-2.5 rounded-lg border border-slate-200 dark:border-dark-700 bg-white dark:bg-dark-800 text-sm text-slate-700 dark:text-slate-200 focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all outline-none disabled:opacity-50 disabled:bg-slate-50 dark:disabled:bg-dark-900/50"
+                  >
+                    <option value="">Select an offer...</option>
+                    {availableOffers.map((off, idx) => (
+                      <option key={idx} value={off.value}>{off.label}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {selectedOffer && (
+                <div className="mb-4 p-3 rounded-lg bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-100 dark:border-emerald-500/20">
+                  <p className="text-xs font-bold text-emerald-800 dark:text-emerald-300 uppercase mb-1">Applied Offer:</p>
+                  <p className="text-sm text-emerald-700 dark:text-emerald-400 italic">"{selectedOffer}"</p>
+                </div>
+              )}
+              {generatingEmail ? (
+                <div className="rounded-lg border border-slate-200 dark:border-dark-700 bg-slate-50 dark:bg-dark-800/50 p-6 space-y-4">
+                  <div className="h-4 bg-slate-200 dark:bg-dark-700 rounded w-1/4 animate-pulse"></div>
+                  <div className="space-y-3">
+                    <div className="h-3 bg-slate-200 dark:bg-dark-700 rounded w-full animate-pulse"></div>
+                    <div className="h-3 bg-slate-200 dark:bg-dark-700 rounded w-5/6 animate-pulse"></div>
+                    <div className="h-3 bg-slate-200 dark:bg-dark-700 rounded w-full animate-pulse"></div>
+                  </div>
+                </div>
+              ) : (
+                <div className="rounded-lg border border-slate-200 dark:border-dark-700 bg-slate-50 dark:bg-dark-800/50 p-4">
+                  <textarea
+                    value={generatedEmail}
+                    onChange={(e) => onEmailChange(e.target.value)}
+                    className="w-full h-48 p-3 rounded-lg border border-slate-200 dark:border-dark-600 bg-white dark:bg-dark-900 text-sm text-slate-700 dark:text-slate-300 resize-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                    placeholder="Edit the AI-generated email draft..."
+                  />
+                  <div className="mt-3 flex justify-end">
+                    <button
+                      onClick={() => onSendEmail(generatedEmail, lead.email)}
+                      disabled={sendingEmail || !generatedEmail}
+                      className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 active:scale-95 transition-all disabled:opacity-50 text-sm font-bold shadow-md shadow-emerald-500/20"
+                    >
+                      {sendingEmail ? 'Sending...' : 'Send to Lead'}
+                      <Send size={14} />
+                    </button>
+                  </div>
+                </div>
+              )}
+            </section>
+          )}
+
+          {(generatingSms || generatedSms) && (
+            <section className="animate-in fade-in slide-in-from-top-4 duration-500 delay-150">
+              <h3 className="text-sm font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-3 flex items-center gap-2">
+                <MessageSquare size={14} />
+                AI Generated SMS
+              </h3>
+              {generatingSms ? (
+                <div className="rounded-lg border border-slate-200 dark:border-dark-700 bg-slate-50 dark:bg-dark-800/50 p-4 space-y-2">
+                  <div className="h-3 bg-slate-200 dark:bg-dark-700 rounded w-full animate-pulse"></div>
+                  <div className="h-3 bg-slate-200 dark:bg-dark-700 rounded w-4/5 animate-pulse"></div>
+                </div>
+              ) : (
+                <div className="rounded-lg border border-slate-200 dark:border-dark-700 bg-slate-50 dark:bg-dark-800/50 p-4 relative group/sms">
+                  <p className="text-sm text-slate-700 dark:text-slate-300 pr-10">{generatedSms}</p>
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(generatedSms);
+                      // Simple feedback could be added here if needed
+                    }}
+                    className="absolute top-4 right-4 p-2 rounded-md bg-white dark:bg-dark-800 border border-slate-200 dark:border-dark-700 text-slate-400 hover:text-primary-600 transition-colors shadow-sm"
+                    title="Copy SMS"
+                  >
+                    <Copy size={14} />
+                  </button>
+                </div>
+              )}
+            </section>
+          )}
+
+
+
+          <section className="rounded-lg border border-slate-200 dark:border-dark-700 bg-white dark:bg-dark-900 overflow-hidden">
+            <button
+              onClick={() => setIsScoreOpen(!isScoreOpen)}
+              className="w-full flex items-center justify-between p-4 bg-slate-50 dark:bg-dark-800/50 hover:bg-slate-100 dark:hover:bg-dark-800 transition-colors"
+            >
+              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                AI Score Breakdown
+              </h3>
+              <div className="text-slate-400">
+                {isScoreOpen ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
+              </div>
+            </button>
+            
+            {isScoreOpen && (
+              <div className="p-4 pt-0">
+                <div className="space-y-3 mt-4">
+                  {Object.entries(scoreBreakdown).length ? Object.entries(scoreBreakdown).map(([key, item]) => {
+                    const percent = item.max ? Math.round((item.score / item.max) * 100) : 0;
+
+                    return (
+                      <div key={key} className="rounded-lg border border-slate-100 dark:border-dark-800 bg-slate-50/50 dark:bg-dark-800/30 p-3">
+                        <div className="flex items-center justify-between gap-3 mb-2">
+                          <p className="text-sm font-semibold text-slate-800 dark:text-slate-100">{item.label}</p>
+                          <p className="text-xs font-bold text-slate-500 dark:text-slate-400">{item.score}/{item.max}</p>
+                        </div>
+                        <div className="h-2 rounded-full bg-slate-200 dark:bg-dark-700 overflow-hidden">
+                          <div className="h-full bg-primary-500 rounded-full" style={{ width: `${percent}%` }}></div>
+                        </div>
+                      </div>
+                    );
+                  }) : (
+                    <p className="text-sm text-slate-500 dark:text-slate-400">Run analysis to generate a score breakdown.</p>
+                  )}
+                </div>
+              </div>
+            )}
+          </section>
+
+
+          <LeadDetailSection title="Contact Details" fields={allDetailsFields} />
+
+          <section>
+            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-3">
+              Comment
+            </h3>
+            <div className="rounded-lg border border-slate-200 dark:border-dark-700 bg-slate-50 dark:bg-dark-800/50 p-3">
+              <p className="text-sm text-slate-800 dark:text-slate-100 whitespace-pre-wrap">
+                {displayValue(raw.Comment)}
+              </p>
+            </div>
+          </section>
+          
+          <div className="h-2 shrink-0"></div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const LeadAnalyzer = () => {
+  const navigate = useNavigate();
+  const [leads, setLeads] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [analyzingId, setAnalyzingId] = useState(null);
+  const [selectedLeadId, setSelectedLeadId] = useState(null);
+  const [selectedLeadDetail, setSelectedLeadDetail] = useState(null);
+  const [showModal, setShowModal] = useState(false);
+  const [generatedEmail, setGeneratedEmail] = useState('');
+  const [customOffer, setCustomOffer] = useState('');
+  const [generatingEmail, setGeneratingEmail] = useState(false);
+  const [generatedSms, setGeneratedSms] = useState('');
+  const [generatingSms, setGeneratingSms] = useState(false);
+  const [sendingEmail, setSendingEmail] = useState(false);
+  const [shouldAutoGenerate, setShouldAutoGenerate] = useState(false);
+  const [currentHotelOffer, setCurrentHotelOffer] = useState(null);
+  const [allHotelOffers, setAllHotelOffers] = useState([]);
+  const [globalFilter, setGlobalFilter] = useState('');
+  const [sorting, setSorting] = useState([{ id: 'score', desc: true }]);
+  const [columnFilters, setColumnFilters] = useState([]);
+  const [columnVisibility, setColumnVisibility] = useState({
+    email: false,
+    city: false,
+    createdOn: false,
+  });
+
+  const loadLeads = async () => {
+    setLoading(true);
+    try {
+      const response = await api.get('/leads');
+      const nextLeads = response.data.length ? response.data : demoLeads;
+      setLeads(nextLeads.map(normalizeLead));
+    } catch (error) {
+      console.error('Failed to load leads:', error);
+      setLeads(demoLeads.map(normalizeLead));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadLeads();
+
+    const handleLeadCreated = () => loadLeads();
+    window.addEventListener('lead-created', handleLeadCreated);
+
+    return () => window.removeEventListener('lead-created', handleLeadCreated);
+  }, []);
+
+  const selectedLead = useMemo(
+    () => {
+      const listLead = leads.find((lead) => lead.id === selectedLeadId) || null;
+      return selectedLeadDetail ? normalizeLead(selectedLeadDetail, 0) : listLead;
+    },
+    [leads, selectedLeadDetail, selectedLeadId],
+  );
+
+  const handleRowClick = (leadId, autoGen = false) => {
+    setSelectedLeadId(leadId);
+    setShowModal(true);
+    setGeneratedEmail('');
+    setCustomOffer('');
+    setGeneratedSms('');
+    setShouldAutoGenerate(autoGen);
+  };
+
+  const handleCloseModal = () => {
+    setShowModal(false);
+    setSelectedLeadId(null);
+    setSelectedLeadDetail(null);
+    setGeneratedEmail('');
+    setCustomOffer('');
+    setGeneratedSms('');
+    setShouldAutoGenerate(false);
+    setCurrentHotelOffer(null);
+  };
+
+  useEffect(() => {
+    if (!selectedLeadId) return;
+
+    const fetchHotelOffers = async () => {
+      try {
+        const response = await api.get('/hotel-offers');
+        const hotels = response.data || [];
+        setAllHotelOffers(hotels);
+        
+        const lead = leads.find(l => l.id === selectedLeadId);
+        if (lead?.raw) {
+          const hotel = hotels.find(h => 
+            h.HotelOfferID === lead.raw.SelectedHotelOfferID || 
+            (lead.raw.PropertyID && h.HotelCode === lead.raw.PropertyID)
+          ) || (hotels.length > 0 ? hotels[0] : null);
+          setCurrentHotelOffer(hotel || null);
+        }
+      } catch (error) {
+        console.error('Failed to fetch hotel offers:', error);
+      }
+    };
+
+    fetchHotelOffers();
+  }, [selectedLeadId, leads]);
+
+  useEffect(() => {
+    if (!selectedLeadId || String(selectedLeadId).startsWith('DEMO-')) {
+      setSelectedLeadDetail(null);
+      return;
+    }
+
+    const loadLeadDetail = async () => {
+      try {
+        const response = await api.get(`/leads/${selectedLeadId}`);
+        setSelectedLeadDetail(response.data);
+      } catch (error) {
+        console.error('Failed to load lead detail:', error);
+        setSelectedLeadDetail(null);
+      }
+    };
+
+    loadLeadDetail();
+  }, [selectedLeadId]);
+
+  // Handle auto-generation of email
+  useEffect(() => {
+    if (showModal && selectedLead && shouldAutoGenerate && !generatedEmail && !generatingEmail) {
+      generateEmail();
+      generateSms();
+      setShouldAutoGenerate(false);
+    }
+  }, [showModal, selectedLead, shouldAutoGenerate, generatedEmail, generatingEmail]);
+
+  const runAnalysis = async (id) => {
+    setAnalyzingId(id);
+    try {
+      const response = await api.post('/leads/analyze', { leadData: { id } });
+      const { score, next_best_action } = response.data;
+
+      setLeads((prev) => prev.map((lead) => (
+        lead.id === id
+          ? {
+            ...lead,
+            score,
+            status: lead.status || 'Pending',
+            action: next_best_action,
+            raw: {
+              ...lead.raw,
+              LeadRatings: score,
+              Lead_Status_Term: 'Scored',
+              Status: lead.status || 'Pending',
+              AIRecommendation: next_best_action,
+              AISegment: response.data.segment,
+              AIScoreBreakdown: response.data.breakdown,
+              AISignals: response.data.signals,
+              AIRisks: response.data.risks,
+              AIScoreUpdatedOn: new Date().toISOString(),
+              Comment: next_best_action,
+              LastActivityDate: new Date().toISOString(),
+            },
+          }
+          : lead
+      )));
+    } catch (error) {
+      console.error('Failed to analyze lead:', error);
+    } finally {
+      setAnalyzingId(null);
+    }
+  };
+
+  const generateEmail = async () => {
+    if (!selectedLead) return;
+    setGeneratingEmail(true);
+    try {
+      const isFollowUp = selectedLead.status === 'Follow-up';
+      const endpoint = isFollowUp ? '/communication/generate-follow-up' : '/communication/smart-reply';
+      const payload = isFollowUp 
+        ? { leadId: selectedLead.id, leadData: selectedLead.raw, customOffer }
+        : { leadData: selectedLead.raw, emailContext: 'Initial outreach for event planning inquiry', customOffer };
+
+      const response = await api.post(endpoint, payload);
+      setGeneratedEmail(response.data.draft);
+    } catch (error) {
+      console.error('Failed to generate email:', error);
+      setGeneratedEmail('Error generating email. Please try again.');
+    } finally {
+      setGeneratingEmail(false);
+    }
+  };
+
+  const generateSms = async () => {
+    if (!selectedLead) return;
+    setGeneratingSms(true);
+    try {
+      const response = await api.post('/communication/generate-sms', { 
+        leadId: selectedLead.id, 
+        leadData: selectedLead.raw 
+      });
+      setGeneratedSms(response.data.sms);
+    } catch (error) {
+      console.error('Failed to generate SMS:', error);
+      setGeneratedSms('Error generating SMS.');
+    } finally {
+      setGeneratingSms(false);
+    }
+  };
+
+  const handleSendEmail = async (content, emailAddress) => {
+    if (!selectedLead) return;
+    setSendingEmail(true);
+    try {
+      // 1. Backend sending and recording
+      await api.post('/communication/send-email', {
+        leadId: selectedLead.id,
+        content: content,
+        subject: `Re: Inquiry - ${selectedLead.companyName}`
+      });
+
+      alert('Email sent successfully directly from the server!');
+    } catch (error) {
+      console.error('Failed to send email:', error);
+      alert('Error sending email. Please check backend SMTP settings.');
+    } finally {
+      setSendingEmail(false);
+    }
+  };
+
+  const handleEmailChange = (email) => {
+    setGeneratedEmail(email);
+  };
+
+  const handleHotelChange = async (hotelId) => {
+    if (!selectedLeadId) return;
+    try {
+      // Find the hotel object to get its code
+      const hotel = allHotelOffers.find(h => h.HotelOfferID === hotelId);
+      
+      await api.put(`/leads/${selectedLeadId}`, { 
+        selectedHotelOfferId: hotelId,
+        SelectedHotelCode: hotel?.HotelCode,
+        PropertyID: hotel?.HotelCode
+      });
+      
+      // Refresh local leads to reflect change
+      loadLeads();
+    } catch (error) {
+      console.error('Failed to update lead hotel:', error);
+    }
+  };
+
+  const statusOptions = useMemo(
+    () => [...new Set(leads.map((lead) => lead.status).filter(Boolean))],
+    [leads],
+  );
+  const typeOptions = useMemo(
+    () => [...new Set(leads.map((lead) => lead.type).filter(Boolean))],
+    [leads],
+  );
+
+  const columns = useMemo(() => [
+    {
+      accessorKey: 'leadNo',
+      header: 'Lead No',
+      cell: ({ row }) => (
+        <button
+          onClick={() => navigate(`/leads/new/${row.original.id}`)}
+          className="font-semibold text-primary-700 dark:text-primary-300 hover:underline"
+        >
+          {row.original.leadNo}
+        </button>
+      ),
+    },
+    {
+      accessorKey: 'companyName',
+      header: 'Company',
+      cell: ({ row }) => (
+        <div>
+          <p className="font-bold text-slate-900 dark:text-white">{row.original.companyName}</p>
+          <p className="text-xs text-slate-500 dark:text-slate-400">{row.original.contactName}</p>
+        </div>
+      ),
+    },
+    {
+      accessorKey: 'email',
+      header: 'Email',
+    },
+    {
+      accessorKey: 'mobileNo',
+      header: 'Mobile',
+    },
+    {
+      accessorKey: 'city',
+      header: 'Location',
+    },
+    {
+      accessorKey: 'type',
+      header: 'Type',
+      cell: ({ getValue }) => (
+        <span className="inline-flex px-2 py-1 rounded-md text-xs font-medium bg-slate-100 dark:bg-dark-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-dark-600">
+          {getValue()}
+        </span>
+      ),
+    },
+    {
+      accessorKey: 'status',
+      header: 'Status',
+      cell: ({ getValue }) => (
+        <span className="inline-flex px-2 py-1 rounded-md text-xs font-medium bg-white dark:bg-dark-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-dark-600">
+          {getValue()}
+        </span>
+      ),
+    },
+    {
+      accessorKey: 'priority',
+      header: 'Priority',
+    },
+    {
+      accessorKey: 'score',
+      header: 'AI Probability',
+      filterFn: (row, columnId, filterValue) => {
+        if (!filterValue) return true;
+        return Number(row.getValue(columnId)) >= Number(filterValue);
+      },
+      cell: ({ getValue }) => {
+        const score = getValue();
+        return (
+          <span className={`px-2.5 py-1 rounded-full text-xs font-semibold border ${getScoreBadge(score)}`}>
+            {score}%
+          </span>
+        );
+      },
+    },
+    {
+      accessorKey: 'action',
+      header: 'Next Best Action',
+      cell: ({ getValue }) => (
+        <div className="flex items-start gap-2 min-w-64">
+          <Zap className="text-primary-500 shrink-0 mt-0.5" size={14} />
+          <p className="text-sm text-slate-700 dark:text-slate-300 leading-snug">{getValue()}</p>
+        </div>
+      ),
+    },
+    {
+      accessorKey: 'createdOn',
+      header: 'Created',
+      cell: ({ getValue }) => formatDate(getValue()),
+    },
+    {
+      id: 'actions',
+      header: 'Actions',
+      enableSorting: false,
+      cell: ({ row }) => (
+        <div className="flex items-center justify-end gap-2">
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              navigate(`/leads/new/${row.original.id}`);
+            }}
+            className="w-8 h-8 inline-flex items-center justify-center rounded-lg bg-white dark:bg-dark-700 border border-slate-200 dark:border-dark-600 text-slate-500 hover:text-primary-600 dark:hover:text-primary-400"
+            title="Edit lead details"
+          >
+            <Edit2 size={16} />
+          </button>
+          {['Pending', 'Follow-up'].includes(row.original.status) && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                handleRowClick(row.original.id, true);
+              }}
+              className="w-8 h-8 inline-flex items-center justify-center rounded-lg bg-primary-600 text-white hover:bg-primary-700"
+              title={row.original.status === 'Follow-up' ? 'Generate follow-up email' : 'Generate contact email'}
+            >
+              <Mail size={16} />
+            </button>
+          )}
+        </div>
+      ),
+    },
+  ], [analyzingId, navigate]);
+
+  const table = useReactTable({
+    data: leads,
+    columns,
+    state: {
+      globalFilter,
+      sorting,
+      columnFilters,
+      columnVisibility,
+    },
+    onGlobalFilterChange: setGlobalFilter,
+    onSortingChange: setSorting,
+    onColumnFiltersChange: setColumnFilters,
+    onColumnVisibilityChange: setColumnVisibility,
+    globalFilterFn: (row, _columnId, filterValue) => {
+      const search = String(filterValue).toLowerCase();
+      return [
+        row.original.leadNo,
+        row.original.companyName,
+        row.original.contactName,
+        row.original.email,
+        row.original.mobileNo,
+        row.original.city,
+        row.original.type,
+        row.original.status,
+        row.original.priority,
+        row.original.action,
+      ].some((value) => String(value || '').toLowerCase().includes(search));
+    },
+    getCoreRowModel: getCoreRowModel(),
+    getFilteredRowModel: getFilteredRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
+    initialState: {
+      pagination: {
+        pageSize: 8,
+      },
+    },
+  });
+
+  const highValueCount = leads.filter((lead) => lead.score >= 82).length;
+  const nurtureCount = leads.filter((lead) => lead.score >= 65 && lead.score < 82).length;
+  const atRiskCount = leads.filter((lead) => lead.score < 65).length;
+
+  return (
+    <div className="animate-in fade-in slide-in-from-bottom-4 duration-700">
+      <div className="flex justify-between items-end mb-8 gap-4">
+        <div>
+          <h1 className="text-3xl font-bold text-slate-900 dark:text-white mb-2 flex items-center gap-3">
+            <Target className="text-primary-600 dark:text-primary-400" size={32} />
+            Lead Listing & Analysis
+          </h1>
+          <p className="text-slate-500 dark:text-slate-400 max-w-2xl">
+            Search, sort, filter, analyze, and review every captured CRM lead with AI-driven next best actions.
+          </p>
+        </div>
+        <button
+          onClick={() => navigate('/leads/new')}
+          className="btn-primary flex items-center gap-2 mb-2 shrink-0"
+        >
+          <Plus size={18} />
+          <span>New Lead</span>
+        </button>
+      </div>
+
+      <div className="grid gap-6 grid-cols-1">
+        <div className="glass-panel overflow-visible">
+          <div className="p-5 border-b border-slate-200 dark:border-dark-700/50 bg-slate-50 dark:bg-dark-800/50">
+            <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 mb-5">
+              <h2 className="text-lg font-semibold text-slate-800 dark:text-white flex items-center gap-2">
+                <BarChart3 className="text-primary-600 dark:text-primary-400" size={20} />
+                Lead Pipeline Database
+              </h2>
+              <div className="flex flex-wrap gap-2">
+                <span className="px-3 py-1.5 rounded-lg text-xs font-medium bg-white dark:bg-dark-700 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-dark-600 flex items-center gap-1 shadow-sm">
+                  <LayoutList size={14} className="text-primary-500" /> {leads.length} Total
+                </span>
+                <span className="px-3 py-1.5 rounded-lg text-xs font-medium bg-white dark:bg-dark-700 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-dark-600 flex items-center gap-1 shadow-sm">
+                  <Target size={14} className="text-emerald-500" /> {highValueCount} High Value (Hot)
+                </span>
+                <span className="px-3 py-1.5 rounded-lg text-xs font-medium bg-white dark:bg-dark-700 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-dark-600 flex items-center gap-1 shadow-sm">
+                  <AlertCircle size={14} className="text-amber-500" /> {nurtureCount} Nurture (Warm)
+                </span>
+                <span className="px-3 py-1.5 rounded-lg text-xs font-medium bg-white dark:bg-dark-700 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-dark-600 flex items-center gap-1 shadow-sm">
+                  <AlertCircle size={14} className="text-rose-500" /> {atRiskCount} At Risk (Cold)
+                </span>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-[minmax(220px,1fr)_160px_160px_140px] gap-3 mb-4">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                <input
+                  value={globalFilter ?? ''}
+                  onChange={(event) => setGlobalFilter(event.target.value)}
+                  placeholder="Search leads, company, contact, email, action..."
+                  className="input-field pl-10 bg-white dark:bg-dark-900"
+                />
+              </div>
+              <select
+                value={table.getColumn('status')?.getFilterValue() ?? ''}
+                onChange={(event) => table.getColumn('status')?.setFilterValue(event.target.value)}
+                className="input-field bg-white dark:bg-dark-900"
+              >
+                <option value="">All statuses</option>
+                {statusOptions.map((status) => <option key={status} value={status}>{status}</option>)}
+              </select>
+              <select
+                value={table.getColumn('type')?.getFilterValue() ?? ''}
+                onChange={(event) => table.getColumn('type')?.setFilterValue(event.target.value)}
+                className="input-field bg-white dark:bg-dark-900"
+              >
+                <option value="">All types</option>
+                {typeOptions.map((type) => <option key={type} value={type}>{type}</option>)}
+              </select>
+              <select
+                value={table.getColumn('score')?.getFilterValue() ?? ''}
+                onChange={(event) => table.getColumn('score')?.setFilterValue(event.target.value)}
+                className="input-field bg-white dark:bg-dark-900"
+              >
+                <option value="">All scores</option>
+                <option value="80">80% and up</option>
+                <option value="60">60% and up</option>
+                <option value="40">40% and up</option>
+              </select>
+            </div>
+
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
+                <Filter size={14} />
+                <span>{table.getFilteredRowModel().rows.length} matching records</span>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  onClick={() => {
+                    setGlobalFilter('');
+                    setColumnFilters([]);
+                  }}
+                  className="px-3 py-2 rounded-lg text-xs font-semibold bg-white dark:bg-dark-700 border border-slate-200 dark:border-dark-600 text-slate-600 dark:text-slate-300 hover:text-primary-600"
+                >
+                  Clear Filters
+                </button>
+                <div className="relative group">
+                  <button className="px-3 py-2 rounded-lg text-xs font-semibold bg-white dark:bg-dark-700 border border-slate-200 dark:border-dark-600 text-slate-600 dark:text-slate-300 hover:text-primary-600 flex items-center gap-2">
+                    <SlidersHorizontal size={14} />
+                    Columns
+                  </button>
+                  <div className="hidden group-hover:block absolute right-0 top-full pt-2 z-30 w-56">
+                    <div className="rounded-lg border border-slate-200 dark:border-dark-700 bg-white dark:bg-dark-800 shadow-xl p-2 max-h-80 overflow-y-auto">
+                      {table.getAllLeafColumns().filter((column) => column.id !== 'actions').map((column) => (
+                        <label key={column.id} className="flex items-center gap-2 px-2 py-1.5 text-sm text-slate-600 dark:text-slate-300">
+                          <input
+                            type="checkbox"
+                            checked={column.getIsVisible()}
+                            onChange={column.getToggleVisibilityHandler()}
+                          />
+                          <span>{typeof column.columnDef.header === 'string' ? column.columnDef.header : column.id}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                {table.getHeaderGroups().map((headerGroup) => (
+                  <tr key={headerGroup.id} className="bg-slate-50/80 dark:bg-dark-900/40 border-b border-slate-200 dark:border-dark-700/50 text-slate-500 dark:text-slate-400 text-xs uppercase tracking-wider">
+                    {headerGroup.headers.map((header) => (
+                      <th key={header.id} className="p-4 font-semibold whitespace-nowrap">
+                        {header.isPlaceholder ? null : (
+                          <button
+                            onClick={header.column.getToggleSortingHandler()}
+                            disabled={!header.column.getCanSort()}
+                            className="flex items-center gap-1 hover:text-slate-800 dark:hover:text-slate-100 disabled:hover:text-inherit"
+                          >
+                            {flexRender(header.column.columnDef.header, header.getContext())}
+                            {header.column.getCanSort() && (
+                              header.column.getIsSorted() === 'asc'
+                                ? <ArrowUp size={13} />
+                                : header.column.getIsSorted() === 'desc'
+                                  ? <ArrowDown size={13} />
+                                  : <ArrowUpDown size={13} />
+                            )}
+                          </button>
+                        )}
+                      </th>
+                    ))}
+                  </tr>
+                ))}
+              </thead>
+              <tbody className="divide-y divide-slate-100 dark:divide-dark-700/50">
+                {loading ? (
+                  <tr>
+                    <td colSpan={table.getVisibleLeafColumns().length} className="p-8 text-center text-sm text-slate-500">
+                      Loading leads...
+                    </td>
+                  </tr>
+                ) : table.getRowModel().rows.length ? (
+                  table.getRowModel().rows.map((row) => (
+                    <tr
+                      key={row.id}
+                      className="hover:bg-slate-50/70 dark:hover:bg-dark-800/30 transition-colors"
+                    >
+                      {row.getVisibleCells().map((cell) => (
+                        <td key={cell.id} className="p-4 align-top text-sm text-slate-700 dark:text-slate-300">
+                          {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                        </td>
+                      ))}
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={table.getVisibleLeafColumns().length} className="p-8 text-center text-sm text-slate-500">
+                      No leads match the current filters.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="px-5 py-4 border-t border-slate-200 dark:border-dark-700/50 flex flex-col md:flex-row md:items-center justify-between gap-3">
+            <p className="text-sm text-slate-500 dark:text-slate-400">
+              Page {table.getState().pagination.pageIndex + 1} of {table.getPageCount() || 1}
+            </p>
+            <div className="flex items-center gap-2">
+              <select
+                value={table.getState().pagination.pageSize}
+                onChange={(event) => table.setPageSize(Number(event.target.value))}
+                className="input-field bg-white dark:bg-dark-900 w-28 text-sm"
+              >
+                {[5, 8, 10, 20].map((pageSize) => (
+                  <option key={pageSize} value={pageSize}>
+                    {pageSize} rows
+                  </option>
+                ))}
+              </select>
+              <button
+                onClick={() => table.setPageIndex(0)}
+                disabled={!table.getCanPreviousPage()}
+                className="w-9 h-9 inline-flex items-center justify-center rounded-lg bg-white dark:bg-dark-700 border border-slate-200 dark:border-dark-600 disabled:opacity-40"
+              >
+                <ChevronsLeft size={16} />
+              </button>
+              <button
+                onClick={() => table.previousPage()}
+                disabled={!table.getCanPreviousPage()}
+                className="w-9 h-9 inline-flex items-center justify-center rounded-lg bg-white dark:bg-dark-700 border border-slate-200 dark:border-dark-600 disabled:opacity-40"
+              >
+                <ChevronLeft size={16} />
+              </button>
+              <button
+                onClick={() => table.nextPage()}
+                disabled={!table.getCanNextPage()}
+                className="w-9 h-9 inline-flex items-center justify-center rounded-lg bg-white dark:bg-dark-700 border border-slate-200 dark:border-dark-600 disabled:opacity-40"
+              >
+                <ChevronRight size={16} />
+              </button>
+              <button
+                onClick={() => table.setPageIndex(table.getPageCount() - 1)}
+                disabled={!table.getCanNextPage()}
+                className="w-9 h-9 inline-flex items-center justify-center rounded-lg bg-white dark:bg-dark-700 border border-slate-200 dark:border-dark-600 disabled:opacity-40"
+              >
+                <ChevronsRight size={16} />
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {showModal && selectedLead && (
+          <LeadDetailView
+            lead={selectedLead}
+            onClose={handleCloseModal}
+            onAnalyze={runAnalysis}
+            analyzingId={analyzingId}
+            onGenerateEmail={generateEmail}
+            generatingEmail={generatingEmail}
+            generatedEmail={generatedEmail}
+            customOffer={customOffer}
+            onCustomOfferChange={setCustomOffer}
+            generatingSms={generatingSms}
+            generatedSms={generatedSms}
+            onSendEmail={handleSendEmail}
+            sendingEmail={sendingEmail}
+            onEmailChange={handleEmailChange}
+            hotelOffer={currentHotelOffer}
+            allHotelOffers={allHotelOffers}
+            onHotelChange={handleHotelChange}
+          />
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default LeadAnalyzer;
