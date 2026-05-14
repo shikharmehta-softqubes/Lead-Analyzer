@@ -52,6 +52,10 @@ export const getDashboardStats = async (req, res, next) => {
       .sort({ LeadRatings: -1 })
       .limit(3);
 
+    const latestActivities = await Activity.find()
+      .sort({ DateOfCreated: -1 })
+      .limit(5);
+
     res.json({
       stats: {
         totalLeads,
@@ -66,8 +70,18 @@ export const getDashboardStats = async (req, res, next) => {
         action: l.AIRecommendation || l.Comment || 'Review lead',
         time: l.LastActivityDate ? new Date(l.LastActivityDate).toLocaleDateString() : 'New',
         priority: l.Priority || 'Medium'
+      })),
+      latestActivities: latestActivities.map(a => ({
+        id: a._id || a.ActivityID,
+        type: a.ActivityType_Term === 'action' ? 'signal' : a.ActivityType_Term === 'Follow-up Email' ? 'intent' : 'event',
+        title: a.ActivitySubject || 'New Activity',
+        lead: a.AccountName || 'Lead System',
+        description: a.ActivityDetails || 'Activity updated in CRM',
+        time: a.DateOfCreated ? new Date(a.DateOfCreated).getTime() : Date.now(),
+        action: a.ActivityType_Term === 'Follow-up Email' ? 'email' : 'analyze'
       }))
     });
+
   } catch (error) {
     next(error);
   }

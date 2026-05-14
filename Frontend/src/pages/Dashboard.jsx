@@ -207,65 +207,52 @@ const AIAnalysisModal = ({ isOpen, onClose, stats }) => {
   );
 };
 
-const LiveIntelligenceFeed = ({ navigate }) => {
-  const [events, setEvents] = useState([
-    {
-      id: 1,
-      type: 'signal',
-      icon: Mail,
-      title: 'Email Opened',
-      lead: 'TechVision Global',
-      description: 'Lead just viewed the RFP proposal for the 3rd time.',
-      time: 'Just now',
-      color: 'text-primary-500',
-      bgColor: 'bg-primary-500/10',
-      action: 'email'
-    },
-    {
-      id: 2,
-      type: 'intent',
-      icon: TrendingUp,
-      title: 'High Intent Spike',
-      lead: 'Summit Group',
-      description: 'Lead score jumped +15% after visiting pricing page.',
-      time: '4 mins ago',
-      color: 'text-emerald-500',
-      bgColor: 'bg-emerald-500/10',
-      action: 'analyze'
-    },
-    {
-      id: 3,
-      type: 'event',
-      icon: Activity,
-      title: 'Calendar Check',
-      lead: 'Global Logistics',
-      description: 'Lead is checking availability for Oct 12-15.',
-      time: '12 mins ago',
-      color: 'text-amber-500',
-      bgColor: 'bg-amber-500/10',
-      action: 'email'
-    },
-  ]);
+const formatRelativeTime = (timestamp) => {
+  if (!timestamp) return 'Just now';
+  const diff = Date.now() - timestamp;
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return 'Just now';
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+  return new Date(timestamp).toLocaleDateString();
+};
 
-  // Simulate real-time updates
+const LiveIntelligenceFeed = ({ navigate, externalEvents = [] }) => {
+  const [events, setEvents] = useState([]);
+
   useEffect(() => {
-    const interval = setInterval(() => {
-      const newEvent = {
-        id: Date.now(),
-        type: 'signal',
-        icon: Zap,
-        title: 'New Interaction',
-        lead: 'Apex Corp',
-        description: 'AI detected positive sentiment in recent email.',
-        time: 'Just now',
-        color: 'text-indigo-500',
-        bgColor: 'bg-indigo-500/10',
-        action: 'analyze'
-      };
-      setEvents(prev => [newEvent, ...prev.slice(0, 4)]);
-    }, 15000);
-    return () => clearInterval(interval);
-  }, []);
+    if (externalEvents && externalEvents.length > 0) {
+      const mapped = externalEvents.map(e => ({
+        ...e,
+        icon: e.type === 'signal' ? Mail : e.type === 'intent' ? TrendingUp : Activity,
+        color: e.type === 'signal' ? 'text-primary-500' : e.type === 'intent' ? 'text-emerald-500' : 'text-amber-500',
+        bgColor: e.type === 'signal' ? 'bg-primary-500/10' : e.type === 'intent' ? 'bg-emerald-500/10' : 'bg-amber-500/10',
+        time: formatRelativeTime(e.time)
+      }));
+      setEvents(mapped);
+    }
+  }, [externalEvents]);
+
+  // Simulate periodic refreshes or new events if empty
+  useEffect(() => {
+    if (events.length === 0 && (!externalEvents || externalEvents.length === 0)) {
+      setEvents([
+        {
+          id: 1,
+          type: 'signal',
+          icon: Mail,
+          title: 'System Ready',
+          lead: 'AI Assistant',
+          description: 'Dashboard is connected and waiting for new lead signals.',
+          time: 'Just now',
+          color: 'text-primary-500',
+          bgColor: 'bg-primary-500/10',
+          action: 'analyze'
+        }
+      ]);
+    }
+  }, [events.length, externalEvents]);
 
   return (
     <div className="glass-panel p-6 h-full flex flex-col">
@@ -383,10 +370,12 @@ const Dashboard = () => {
         />
         <StatCard title="Conversion Rate" value={stats.conversionRate} decimals={1} suffix="%" change="+15.0%" icon={Target} isPositive={true} />
         <StatCard title="Operational Time Saved" value={stats.operationalTimeSaved} suffix=" hrs" change="+30%" icon={TrendingUp} isPositive={true} />
+        <StatCard title="AI Automated Replies" value={stats.aiAutomatedReplies} change="+8.2%" icon={Mail} isPositive={true} />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-6">
-        <div className="lg:col-span-2 glass-panel p-6">
+      <div className="grid grid-cols-1 xl:grid-cols-4 gap-6 mb-6">
+        <div className="xl:col-span-3 glass-panel p-6 flex flex-col h-[400px]">
+
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-xl font-bold text-slate-800 dark:text-white flex items-center gap-2">
               <TrendingUp className="text-primary-600 dark:text-primary-400" />
@@ -404,14 +393,15 @@ const Dashboard = () => {
             </div>
           </div>
 
-          <div className="h-64 flex items-end gap-4 relative">
+          <div className="flex-1 flex items-end gap-4 relative overflow-hidden mt-2">
             <div className="absolute inset-0 flex flex-col justify-between pointer-events-none border-b border-slate-100 dark:border-dark-800/50">
-              {[1, 2, 3].map(i => <div key={i} className="w-full border-t border-slate-100/50 dark:border-dark-800/30"></div>)}
+              {[1, 2, 3, 4].map(i => <div key={i} className="w-full border-t border-slate-100/50 dark:border-dark-800/30"></div>)}
             </div>
 
             {aiPerformance.map((day, i) => {
-              const scoreHeight = Math.max(day.qualityScore, 2);
-              const volumeHeight = Math.max(day.count * 10, 2);
+              const scoreHeight = Math.min(Math.max(day.qualityScore, 2), 100);
+              const volumeHeight = Math.min(Math.max(day.count * 10, 2), 100);
+
 
               return (
                 <div key={i} className="flex-1 flex flex-col justify-end group relative z-10 h-full">
@@ -448,9 +438,11 @@ const Dashboard = () => {
           </div>
         </div>
 
-        <div className="lg:col-span-1">
-          <LiveIntelligenceFeed navigate={navigate} />
+        <div className="xl:col-span-1 h-[400px]">
+          <LiveIntelligenceFeed navigate={navigate} externalEvents={data?.latestActivities} />
         </div>
+
+
       </div>
 
       <div className="glass-panel p-6">
