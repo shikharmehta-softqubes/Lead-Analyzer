@@ -19,7 +19,7 @@ const AnimatedNumber = ({ value, decimals = 0, suffix = "" }) => {
       const elapsed = currentTime - startTime;
       const progress = Math.min(elapsed / duration, 1);
       const easedProgress = 1 - Math.pow(1 - progress, 3); // easeOutCubic
-      
+
       const current = start + (end - start) * easedProgress;
       setDisplayValue(current);
       valueRef.current = current;
@@ -30,14 +30,14 @@ const AnimatedNumber = ({ value, decimals = 0, suffix = "" }) => {
     };
 
     requestAnimationFrame(animate);
-    return () => {}; // Cleanup if needed
+    return () => { }; // Cleanup if needed
   }, [value]);
 
   return <span>{displayValue.toLocaleString(undefined, { minimumFractionDigits: decimals, maximumFractionDigits: decimals })}{suffix}</span>;
 };
 
 const StatCard = ({ title, value, change, icon: Icon, isPositive, suffix = "", decimals = 0, onClick }) => (
-  <div 
+  <div
     onClick={onClick}
     className={`bg-[#040183] rounded-xl p-6 relative overflow-hidden group shadow-md border-none ${onClick ? 'cursor-pointer hover:scale-[1.02] active:scale-[0.98] transition-all duration-300' : ''}`}
   >
@@ -89,7 +89,7 @@ const AIAnalysisModal = ({ isOpen, onClose, stats }) => {
       <div className="bg-white dark:bg-dark-900 rounded-3xl shadow-2xl max-w-2xl w-full overflow-hidden border border-white/20 relative">
         {/* Background Glow */}
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-1 bg-gradient-to-r from-transparent via-primary-500 to-transparent"></div>
-        
+
         <div className="p-8">
           <div className="flex justify-between items-center mb-8">
             <div className="flex items-center gap-3">
@@ -116,7 +116,7 @@ const AIAnalysisModal = ({ isOpen, onClose, stats }) => {
               </div>
               <h3 className="text-lg font-bold text-slate-800 dark:text-white mb-2">Analyzing lead quality patterns...</h3>
               <p className="text-slate-500 dark:text-slate-400 max-w-xs mx-auto">Scanning database, interaction history, and conversion signals.</p>
-              
+
               <div className="mt-8 space-y-3 w-full max-w-sm">
                 {[
                   { label: 'Ingesting lead metadata', done: progress > 30 },
@@ -190,7 +190,7 @@ const AIAnalysisModal = ({ isOpen, onClose, stats }) => {
                   </div>
                 </div>
               </div>
-              
+
               <div className="mt-10 flex justify-end gap-4 pt-6 border-t border-slate-100 dark:border-dark-800">
                 <button onClick={onClose} className="px-6 py-2.5 rounded-xl bg-slate-100 dark:bg-dark-800 text-slate-600 dark:text-slate-300 font-bold hover:bg-slate-200 dark:hover:bg-dark-700 transition-all text-sm">
                   Dismiss
@@ -282,7 +282,7 @@ const LiveIntelligenceFeed = ({ navigate }) => {
 
       <div className="space-y-6 flex-1 overflow-y-auto custom-scrollbar pr-2">
         {events.map((event, i) => (
-          <div 
+          <div
             key={event.id}
             className="relative pl-8 animate-in fade-in slide-in-from-right-4 duration-500"
             style={{ animationDelay: `${i * 100}ms` }}
@@ -291,7 +291,7 @@ const LiveIntelligenceFeed = ({ navigate }) => {
             {i !== events.length - 1 && (
               <div className="absolute left-[15px] top-8 bottom-[-24px] w-0.5 bg-slate-100 dark:bg-dark-800"></div>
             )}
-            
+
             <div className={`absolute left-0 top-0 w-8 h-8 rounded-lg ${event.bgColor} ${event.color} flex items-center justify-center shadow-sm`}>
               <event.icon size={16} />
             </div>
@@ -303,8 +303,8 @@ const LiveIntelligenceFeed = ({ navigate }) => {
               </div>
               <p className="text-xs font-bold text-primary-600 dark:text-primary-400">{event.lead}</p>
               <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">{event.description}</p>
-              
-              <button 
+
+              <button
                 onClick={() => navigate('/leads', { state: { leadId: event.lead, openModal: event.action === 'email' ? 'email' : 'email' } })}
                 className="mt-2 text-[10px] font-black uppercase tracking-wider text-slate-400 hover:text-primary-600 dark:hover:text-primary-400 flex items-center gap-1 transition-colors w-fit"
               >
@@ -357,7 +357,7 @@ const Dashboard = () => {
           <h1 className="text-3xl font-bold text-slate-900 dark:text-white mb-2">Welcome back, Alex</h1>
           <p className="text-slate-500 dark:text-slate-400">Here's what's happening with your leads today.</p>
         </div>
-        <button 
+        <button
           onClick={() => setShowAnalysis(true)}
           className="btn-primary flex items-center gap-2 px-6"
         >
@@ -366,26 +366,26 @@ const Dashboard = () => {
         </button>
       </div>
 
-      <AIAnalysisModal 
-        isOpen={showAnalysis} 
-        onClose={() => setShowAnalysis(false)} 
+      <AIAnalysisModal
+        isOpen={showAnalysis}
+        onClose={() => setShowAnalysis(false)}
         stats={data?.stats}
       />
 
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 mb-8">
-        <StatCard 
-          title="Total Leads" 
-          value={stats.totalLeads} 
-          change="+12.5%" 
-          icon={Users} 
-          isPositive={true} 
+        <StatCard
+          title="Total Leads"
+          value={stats.totalLeads}
+          change="+12.5%"
+          icon={Users}
+          isPositive={true}
           onClick={() => navigate('/leads')}
         />
         <StatCard title="Conversion Rate" value={stats.conversionRate} decimals={1} suffix="%" change="+15.0%" icon={Target} isPositive={true} />
         <StatCard title="Operational Time Saved" value={stats.operationalTimeSaved} suffix=" hrs" change="+30%" icon={TrendingUp} isPositive={true} />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-6">
         <div className="lg:col-span-2 glass-panel p-6">
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-xl font-bold text-slate-800 dark:text-white flex items-center gap-2">
@@ -403,7 +403,7 @@ const Dashboard = () => {
               </div>
             </div>
           </div>
-          
+
           <div className="h-64 flex items-end gap-4 relative">
             <div className="absolute inset-0 flex flex-col justify-between pointer-events-none border-b border-slate-100 dark:border-dark-800/50">
               {[1, 2, 3].map(i => <div key={i} className="w-full border-t border-slate-100/50 dark:border-dark-800/30"></div>)}
@@ -411,22 +411,21 @@ const Dashboard = () => {
 
             {aiPerformance.map((day, i) => {
               const scoreHeight = Math.max(day.qualityScore, 2);
-              const volumeHeight = Math.max(day.count * 10, 2); 
-              
+              const volumeHeight = Math.max(day.count * 10, 2);
+
               return (
                 <div key={i} className="flex-1 flex flex-col justify-end group relative z-10 h-full">
                   <div className="flex items-end justify-center gap-1.5 w-full h-full pb-1">
-                    <div 
+                    <div
                       className="w-1.5 bg-slate-200 dark:bg-dark-700 rounded-t-sm transition-all duration-300 group-hover:bg-slate-300 dark:group-hover:bg-dark-600"
                       style={{ height: `${volumeHeight}%` }}
                     ></div>
-                    <div 
-                      className={`w-full max-w-[28px] rounded-t-md relative transition-all duration-500 group-hover:scale-x-105 group-hover:shadow-lg shadow-sm ${
-                        day.qualityScore >= 80 ? 'bg-gradient-to-t from-emerald-600 to-emerald-400' :
+                    <div
+                      className={`w-full max-w-[28px] rounded-t-md relative transition-all duration-500 group-hover:scale-x-105 group-hover:shadow-lg shadow-sm ${day.qualityScore >= 80 ? 'bg-gradient-to-t from-emerald-600 to-emerald-400' :
                         day.qualityScore >= 60 ? 'bg-gradient-to-t from-amber-500 to-amber-300' :
-                        day.qualityScore > 0 ? 'bg-gradient-to-t from-rose-500 to-rose-400' :
-                        'bg-slate-100 dark:bg-dark-800'
-                      }`}
+                          day.qualityScore > 0 ? 'bg-gradient-to-t from-rose-500 to-rose-400' :
+                            'bg-slate-100 dark:bg-dark-800'
+                        }`}
                       style={{ height: `${scoreHeight}%` }}
                     >
                       <div className="absolute -top-12 left-1/2 -translate-x-1/2 bg-slate-900 dark:bg-dark-800 text-white text-[10px] py-1.5 px-3 rounded-lg opacity-0 group-hover:opacity-100 transition-all duration-300 pointer-events-none whitespace-nowrap z-20 shadow-2xl border border-white/10 flex flex-col items-center translate-y-2 group-hover:translate-y-0">
@@ -461,18 +460,17 @@ const Dashboard = () => {
         </h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {nextActions.length > 0 ? nextActions.map((task, i) => (
-            <div 
-              key={i} 
+            <div
+              key={i}
               onClick={() => navigate('/leads', { state: { leadId: task.id, openModal: 'email' } })}
               className="p-4 rounded-xl bg-slate-50 dark:bg-dark-900/50 border border-slate-200 dark:border-dark-700/50 hover:border-primary-500/50 dark:hover:border-primary-500/50 transition-colors group cursor-pointer"
             >
               <div className="flex justify-between items-start mb-2">
                 <h4 className="font-medium text-slate-800 dark:text-white group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors">{task.company}</h4>
-                <span className={`text-xs px-2 py-1 rounded-md font-medium ${
-                  task.priority === 'High' ? 'bg-rose-100 dark:bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-500/20' : 
-                  task.priority === 'Medium' ? 'bg-amber-100 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-500/20' : 
-                  'bg-emerald-100 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-500/20'
-                }`}>
+                <span className={`text-xs px-2 py-1 rounded-md font-medium ${task.priority === 'High' ? 'bg-rose-100 dark:bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-500/20' :
+                  task.priority === 'Medium' ? 'bg-amber-100 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-500/20' :
+                    'bg-emerald-100 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-500/20'
+                  }`}>
                   {task.priority}
                 </span>
               </div>

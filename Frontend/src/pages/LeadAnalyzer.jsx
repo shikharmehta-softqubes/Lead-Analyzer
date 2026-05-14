@@ -176,10 +176,10 @@ const normalizeLead = (lead, index) => {
 };
 
 const getScoreBadge = (score) => {
-  if (score >= 82) {
+  if (score > 80) {
     return 'bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/20';
   }
-  if (score >= 65) {
+  if (score >= 50) {
     return 'bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/20';
   }
   return 'bg-rose-100 text-rose-700 border-rose-200 dark:bg-rose-500/10 dark:text-rose-400 dark:border-rose-500/20';
@@ -752,6 +752,8 @@ const LeadAnalyzer = () => {
     email: false,
     city: false,
     createdOn: false,
+    needsNurture: false,
+    isStale: false,
   });
 
   const loadLeads = async () => {
@@ -1110,7 +1112,12 @@ const LeadAnalyzer = () => {
       header: 'AI Prob.',
       filterFn: (row, columnId, filterValue) => {
         if (!filterValue) return true;
-        return Number(row.getValue(columnId)) >= Number(filterValue);
+        const score = Number(row.getValue(columnId));
+        if (typeof filterValue === 'object') {
+          const { min, max } = filterValue;
+          return score >= (min ?? 0) && score <= (max ?? 100);
+        }
+        return score >= Number(filterValue);
       },
       cell: ({ getValue }) => {
         const score = getValue();
@@ -1193,6 +1200,16 @@ const LeadAnalyzer = () => {
         </div>
       ),
     },
+    {
+      id: 'needsNurture',
+      accessorFn: (row) => row.nurture.needsNurture,
+      filterFn: 'equals',
+    },
+    {
+      id: 'isStale',
+      accessorFn: (row) => row.nurture.isStale,
+      filterFn: 'equals',
+    },
   ], [analyzingId, navigate]);
 
   const table = useReactTable({
@@ -1219,9 +1236,16 @@ const LeadAnalyzer = () => {
     },
   });
 
-  const highValueCount = leads.filter((lead) => lead.score >= 82).length;
-  const nurtureCount = leads.filter((lead) => lead.score >= 65 && lead.score < 82).length;
-  const atRiskCount = leads.filter((lead) => lead.score < 65).length;
+  const highValueCount = leads.filter((lead) => lead.score > 80).length;
+  const nurtureCount = leads.filter((lead) => lead.score >= 50 && lead.score <= 80).length;
+  const atRiskCount = leads.filter((lead) => lead.score < 50).length;
+  const awaitingCount = leads.filter((lead) => lead.nurture.needsNurture).length;
+  const staleCount = leads.filter((lead) => lead.nurture.isStale).length;
+
+  const clearAllFilters = () => {
+    table.resetColumnFilters();
+    setGlobalFilter('');
+  };
 
   return (
     <div className="animate-in fade-in slide-in-from-bottom-4 duration-700">
@@ -1253,18 +1277,90 @@ const LeadAnalyzer = () => {
                 Lead Pipeline Database
               </h2>
               <div className="flex flex-wrap gap-2">
-                <span className="px-3 py-1.5 rounded-lg text-xs font-medium bg-white dark:bg-dark-700 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-dark-600 flex items-center gap-1 shadow-sm">
-                  <LayoutList size={14} className="text-primary-500" /> {leads.length} Total
-                </span>
-                <span className="px-3 py-1.5 rounded-lg text-xs font-medium bg-white dark:bg-dark-700 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-dark-600 flex items-center gap-1 shadow-sm">
-                  <Target size={14} className="text-emerald-500" /> {highValueCount} High Value (Hot)
-                </span>
-                <span className="px-3 py-1.5 rounded-lg text-xs font-medium bg-white dark:bg-dark-700 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-dark-600 flex items-center gap-1 shadow-sm">
-                  <AlertCircle size={14} className="text-amber-500" /> {nurtureCount} Nurture (Warm)
-                </span>
-                <span className="px-3 py-1.5 rounded-lg text-xs font-medium bg-white dark:bg-dark-700 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-dark-600 flex items-center gap-1 shadow-sm">
-                  <AlertCircle size={14} className="text-rose-500" /> {atRiskCount} At Risk (Cold)
-                </span>
+                <button
+                  onClick={clearAllFilters}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all duration-200 flex items-center gap-1.5 shadow-sm border ${
+                    !table.getState().columnFilters.length && !globalFilter
+                      ? 'bg-primary-600 text-white border-primary-600'
+                      : 'bg-white dark:bg-dark-700 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-dark-600 hover:border-primary-400'
+                  }`}
+                >
+                  <LayoutList size={14} className={!table.getState().columnFilters.length && !globalFilter ? 'text-white' : 'text-primary-500'} /> 
+                  {leads.length} Total
+                </button>
+                <button
+                  onClick={() => {
+                    table.resetColumnFilters();
+                    table.getColumn('score')?.setFilterValue({ min: 81, max: 100 });
+                  }}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all duration-200 flex items-center gap-1.5 shadow-sm border ${
+                    JSON.stringify(table.getColumn('score')?.getFilterValue()) === JSON.stringify({ min: 81, max: 100 })
+                      ? 'bg-emerald-600 text-white border-emerald-600'
+                      : 'bg-white dark:bg-dark-700 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-dark-600 hover:border-emerald-400'
+                  }`}
+                >
+                  <Target size={14} className={JSON.stringify(table.getColumn('score')?.getFilterValue()) === JSON.stringify({ min: 81, max: 100 }) ? 'text-white' : 'text-emerald-500'} /> 
+                  {highValueCount} High Value (Hot)
+                </button>
+                <button
+                  onClick={() => {
+                    table.resetColumnFilters();
+                    table.getColumn('score')?.setFilterValue({ min: 50, max: 80 });
+                  }}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all duration-200 flex items-center gap-1.5 shadow-sm border ${
+                    JSON.stringify(table.getColumn('score')?.getFilterValue()) === JSON.stringify({ min: 50, max: 80 })
+                      ? 'bg-amber-600 text-white border-amber-600'
+                      : 'bg-white dark:bg-dark-700 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-dark-600 hover:border-amber-400'
+                  }`}
+                >
+                  <AlertCircle size={14} className={JSON.stringify(table.getColumn('score')?.getFilterValue()) === JSON.stringify({ min: 50, max: 80 }) ? 'text-white' : 'text-amber-500'} /> 
+                  {nurtureCount} Nurture (Warm)
+                </button>
+                <button
+                  onClick={() => {
+                    table.resetColumnFilters();
+                    table.getColumn('score')?.setFilterValue({ min: 0, max: 49 });
+                  }}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all duration-200 flex items-center gap-1.5 shadow-sm border ${
+                    JSON.stringify(table.getColumn('score')?.getFilterValue()) === JSON.stringify({ min: 0, max: 49 })
+                      ? 'bg-rose-600 text-white border-rose-600'
+                      : 'bg-white dark:bg-dark-700 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-dark-600 hover:border-rose-400'
+                  }`}
+                >
+                  <AlertCircle size={14} className={JSON.stringify(table.getColumn('score')?.getFilterValue()) === JSON.stringify({ min: 0, max: 49 }) ? 'text-white' : 'text-rose-500'} /> 
+                  {atRiskCount} At Risk (Cold)
+                </button>
+
+                <div className="w-px h-8 bg-slate-200 dark:bg-dark-700 mx-1 self-center hidden sm:block"></div>
+
+                <button
+                  onClick={() => {
+                    table.resetColumnFilters();
+                    table.getColumn('needsNurture')?.setFilterValue(true);
+                  }}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all duration-200 flex items-center gap-1.5 shadow-sm border ${
+                    table.getColumn('needsNurture')?.getFilterValue() === true
+                      ? 'bg-amber-500 text-white border-amber-500'
+                      : 'bg-white dark:bg-dark-700 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-dark-600 hover:border-amber-400'
+                  }`}
+                >
+                  <div className={`h-2 w-2 rounded-full bg-amber-500 border border-white shadow-[0_0_8px_rgba(245,158,11,0.6)] ${table.getColumn('needsNurture')?.getFilterValue() === true ? 'animate-pulse' : ''}`}></div>
+                  {awaitingCount} Awaiting Action
+                </button>
+                <button
+                  onClick={() => {
+                    table.resetColumnFilters();
+                    table.getColumn('isStale')?.setFilterValue(true);
+                  }}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all duration-200 flex items-center gap-1.5 shadow-sm border ${
+                    table.getColumn('isStale')?.getFilterValue() === true
+                      ? 'bg-rose-500 text-white border-rose-500'
+                      : 'bg-white dark:bg-dark-700 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-dark-600 hover:border-rose-400'
+                  }`}
+                >
+                  <div className="h-2 w-2 rounded-full bg-rose-500 border border-white shadow-[0_0_8px_rgba(244,63,94,0.6)]"></div>
+                  {staleCount} Stale Lead
+                </button>
               </div>
             </div>
 
