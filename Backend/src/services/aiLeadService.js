@@ -13,7 +13,7 @@ const addScore = (breakdown, key, value) => {
 
 const clampScore = (score) => Math.max(0, Math.min(100, Math.round(score)));
 
-export const analyzeLeadData = (lead = {}) => {
+export const analyzeLeadData = async (lead = {}, activities = []) => {
   // 100-point deterministic model: contact 20, company 15, event 20,
   // budget 20, urgency 15, engagement 10.
   const breakdown = {
@@ -132,13 +132,17 @@ export const analyzeLeadData = (lead = {}) => {
 
   const leadScore = clampScore(Object.values(breakdown).reduce((total, item) => total + item.score, 0));
   const segment = getSegment(leadScore);
-  const recommendedAction = getRecommendedAction(leadScore, {
+  const recommendedActions = await getRecommendedActions(leadScore, {
     decisionTimeline,
     priority,
     email,
     mobileNo,
     status,
-  });
+    companyName,
+    firstName,
+    groupType,
+    comment
+  }, activities);
 
   return {
     score: leadScore,
@@ -146,7 +150,8 @@ export const analyzeLeadData = (lead = {}) => {
     breakdown,
     signals,
     risks,
-    recommendedAction,
+    recommendedAction: recommendedActions[0] || 'Review lead',
+    recommendedActions,
     summary: buildLeadSummary({ companyName, firstName, groupType, comment, segment }),
   };
 };
@@ -157,15 +162,75 @@ const getSegment = (score) => {
   return 'Cold';
 };
 
-export const getRecommendedAction = (score, lead = {}) => {
-  if (lead.status === 'Closed') return 'No sales action required unless the lead reopens.';
-  if (score >= 85) return 'Schedule an executive sales call and send a tailored proposal today.';
-  if (lead.decisionTimeline === 'ASAP' || lead.priority === 'High') return 'Prioritize a qualification call and confirm decision criteria.';
-  if (score >= 65) return 'Send a personalized proposal and follow up within 24 hours.';
-  if (lead.email) return 'Send a helpful nurture email with relevant case studies and pricing options.';
-  if (lead.mobileNo) return 'Call the lead to complete missing qualification details.';
-  return 'Collect missing contact details before starting an automated follow-up sequence.';
+export const generateAIRecommendedAction = async (leadData, activities = []) => {
+  const history = activities.length > 0 
+    ? activities.slice(0, 5).map(a => `- ${a.ActivityType_Term}: ${a.ActivitySubject} | ${a.ActivityDetails}`).join('\n')
+    : 'No interaction history yet.';
+
+  const prompt = `You are an expert sales operations AI. Based on the lead details and recent interaction history, suggest the SINGLE most important Next Best Action for this lead.
+  
+  Lead: ${leadData.firstName || 'Contact'} from ${leadData.companyName || 'Unknown Company'}
+  Inquiry: ${leadData.groupType || 'General inquiry'}
+  Notes: ${leadData.comment || 'None'}
+  Status: ${leadData.status}
+  
+  Recent Activity History:
+  ${history}
+  
+  Your suggestion should be highly specific (max 15 words). Example: "Follow up on Sarah's question about the ballroom dates" or "Send the requested seasonal pricing menu".
+  
+  Next Best Action:`;
+
+  const action = await generateEmailWithAI(prompt, 'gpt-4o-mini');
+  return action?.replace(/^"|"$/g, '') || null;
 };
+
+export const getRecommendedActions = async (score, lead = {}, activities = []) => {
+  if (lead.status === 'Closed') return ['No sales action required unless the lead reopens.'];
+  
+  const actions = [];
+  
+  // Try AI first for the primary action
+  if (activities.length > 0 || lead.comment) {
+    const aiAction = await generateAIRecommendedAction(lead, activities);
+    if (aiAction) actions.push(aiAction);
+  }
+
+  // Rule 1: High Priority / ASAP
+  if (lead.decisionTimeline === 'ASAP' || lead.priority === 'High') {
+    actions.push('Prioritize a qualification call and confirm decision criteria.');
+  }
+
+  // Rule 2: High Score
+  if (score >= 85) {
+    actions.push('Schedule an executive sales call and send a tailored proposal today.');
+  }
+
+  // Rule 3: Qualified / Follow-up
+  if (score >= 65 && score < 85) {
+    actions.push('Send a personalized proposal and follow up within 24 hours.');
+  }
+
+  // Rule 4: Communication Channels
+  if (lead.email) {
+    actions.push('Send a helpful nurture email with relevant case studies and pricing options.');
+  }
+  
+  if (lead.mobileNo) {
+    actions.push('Call the lead to complete missing qualification details.');
+  }
+
+  // Fallback
+  if (actions.length === 0) {
+    actions.push('Collect missing contact details before starting an automated follow-up sequence.');
+  }
+  
+  // Return unique actions, max 3 for UI stability
+  return [...new Set(actions)].slice(0, 3);
+};
+
+// Keeping for backward compatibility if needed internally, but using plural version now
+export const getRecommendedAction = async (score, lead = {}) => (await getRecommendedActions(score, lead))[0];
 
 export const buildLeadSummary = ({ companyName, firstName, groupType, comment, segment }) => {
   const contact = firstName || 'The lead';

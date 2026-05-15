@@ -133,6 +133,10 @@ const leadSchema = new mongoose.Schema(
       type: String,
       default: null,
     },
+    AIRecommendations: {
+      type: [String],
+      default: [],
+    },
     AIScoreBreakdown: {
       type: mongoose.Schema.Types.Mixed,
       default: null,

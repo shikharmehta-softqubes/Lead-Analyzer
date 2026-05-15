@@ -49,6 +49,7 @@ const buildLeadPayload = async (body, analysis) => {
     LeadRatings: analysis.score,
     AISegment: analysis.segment,
     AIRecommendation: analysis.recommendedAction,
+    AIRecommendations: analysis.recommendedActions,
     AIScoreBreakdown: analysis.breakdown,
     AISignals: analysis.signals,
     AIRisks: analysis.risks,
@@ -99,7 +100,7 @@ const buildLeadActivity = (lead, action) => {
 
 export const createLead = async (req, res, next) => {
   try {
-    const analysis = analyzeLeadData(req.body);
+    const analysis = await analyzeLeadData(req.body, []);
     const lead = await Lead.create(await buildLeadPayload(req.body, analysis));
     await Activity.create(buildLeadActivity(lead, 'create'));
 
@@ -141,13 +142,16 @@ export const updateLead = async (req, res, next) => {
         ...buildInputDetails(req.body),
       },
     };
-    const analysis = analyzeLeadData(mergedLead);
+
+    const activities = await Activity.find({ AssociationID: lead.LeadID || lead._id }).sort({ DateOfCreated: -1 });
+    const analysis = await analyzeLeadData(mergedLead, activities);
     const payload = await buildLeadPayload(mergedLead, analysis);
 
     Object.assign(lead, payload, {
       LeadRatings: analysis.score,
       AISegment: analysis.segment,
       AIRecommendation: analysis.recommendedAction,
+      AIRecommendations: analysis.recommendedActions,
       AIScoreBreakdown: analysis.breakdown,
       AISignals: analysis.signals,
       AIRisks: analysis.risks,
@@ -196,12 +200,18 @@ export const analyzeLead = async (req, res, next) => {
   try {
     const leadId = req.body?.leadData?.id || req.body?.id;
     const lead = await findLeadByIdentifier(leadId);
-    const analysis = analyzeLeadData(lead || req.body?.leadData || {});
+    
+    const activities = lead 
+      ? await Activity.find({ AssociationID: lead.LeadID || lead._id }).sort({ DateOfCreated: -1 })
+      : [];
+      
+    const analysis = await analyzeLeadData(lead || req.body?.leadData || {}, activities);
 
     if (lead) {
       lead.LeadRatings = analysis.score;
       lead.AISegment = analysis.segment;
       lead.AIRecommendation = analysis.recommendedAction;
+      lead.AIRecommendations = analysis.recommendedActions;
       lead.AIScoreBreakdown = analysis.breakdown;
       lead.AISignals = analysis.signals;
       lead.AIRisks = analysis.risks;
@@ -216,6 +226,7 @@ export const analyzeLead = async (req, res, next) => {
     res.json({
       score: analysis.score,
       next_best_action: analysis.recommendedAction,
+      next_best_actions: analysis.recommendedActions,
       segment: analysis.segment,
       breakdown: analysis.breakdown,
       signals: analysis.signals,
@@ -236,7 +247,8 @@ export const getLeadInsights = async (req, res, next) => {
       throw new Error('Lead not found');
     }
 
-    const analysis = analyzeLeadData(lead);
+    const activities = await Activity.find({ AssociationID: lead.LeadID || lead._id }).sort({ DateOfCreated: -1 });
+    const analysis = await analyzeLeadData(lead, activities);
     res.json({ lead, analysis });
   } catch (error) {
     next(error);

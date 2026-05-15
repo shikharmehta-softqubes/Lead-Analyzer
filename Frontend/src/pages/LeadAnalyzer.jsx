@@ -166,6 +166,9 @@ const normalizeLead = (lead, index) => {
     priority: lead.Priority || 'Standard',
     score: Number(lead.LeadRatings || 0),
     action: lead.AIRecommendation || lead.Comment || 'Run AI analysis for recommended next action.',
+    actions: (lead.AIRecommendations && lead.AIRecommendations.length > 0) 
+      ? lead.AIRecommendations 
+      : (lead.AIRecommendation ? [lead.AIRecommendation] : ['Run AI analysis for recommended next action.']),
     createdOn: lead.CreatedOn,
     lastActivityDate: lead.LastActivityDate,
     nurture,
@@ -186,31 +189,47 @@ const getScoreBadge = (score) => {
 };
 
 const WinProbabilityGauge = ({ probability }) => {
-  const rotation = (probability / 100) * 180 - 90;
+  const radius = 42;
+  const circumference = Math.PI * radius;
+  const offset = circumference - (probability / 100) * circumference;
 
   const getGaugeColor = (score) => {
-    if (score >= 82) return 'border-emerald-500';
-    if (score >= 65) return 'border-amber-500';
-    return 'border-rose-500';
+    if (score > 80) return 'text-emerald-500';
+    if (score >= 50) return 'text-amber-500';
+    return 'text-rose-500';
   };
 
   const getTextColor = (score) => {
-    if (score >= 82) return 'text-emerald-600 dark:text-emerald-400';
-    if (score >= 65) return 'text-amber-600 dark:text-amber-400';
+    if (score > 80) return 'text-emerald-600 dark:text-emerald-400';
+    if (score >= 50) return 'text-amber-600 dark:text-amber-400';
     return 'text-rose-600 dark:text-rose-400';
   };
 
   return (
-    <div className="relative w-48 h-24 overflow-hidden mx-auto mb-4">
-      <div className="absolute top-0 left-0 w-48 h-48 rounded-full border-[12px] border-slate-100 dark:border-dark-800"></div>
-      <div
-        className={`absolute top-0 left-0 w-48 h-48 rounded-full border-[12px] transition-all duration-1000 ease-out ${getGaugeColor(probability)}`}
-        style={{
-          clipPath: 'polygon(0 0, 100% 0, 100% 50%, 0 50%)',
-          transform: `rotate(${rotation}deg)`
-        }}
-      ></div>
-      <div className="absolute bottom-0 left-1/2 -translate-x-1/2 text-center pb-2">
+    <div className="relative w-48 mx-auto mb-4">
+      <svg viewBox="0 0 100 55" className="w-full">
+        {/* Background track */}
+        <path
+          d="M 10 50 A 40 40 0 0 1 90 50"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="10"
+          strokeLinecap="round"
+          className="text-slate-100 dark:text-dark-800"
+        />
+        {/* Progress track */}
+        <path
+          d="M 10 50 A 40 40 0 0 1 90 50"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="10"
+          strokeLinecap="round"
+          strokeDasharray={circumference}
+          strokeDashoffset={offset}
+          className={`${getGaugeColor(probability)} transition-all duration-1000 ease-out`}
+        />
+      </svg>
+      <div className="absolute bottom-1 left-1/2 -translate-x-1/2 text-center">
         <span className={`text-3xl font-black leading-none ${getTextColor(probability)}`}>{probability}%</span>
         <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Win Likelihood</span>
       </div>
@@ -230,7 +249,7 @@ const RoadmapToClose = ({ steps, score = 0 }) => (
       {/* Progress line */}
       <div
         className="absolute left-[11px] top-2 w-0.5 bg-primary-500 transition-all duration-1000 ease-out"
-        style={{ height: `calc(${score}% - 8px)`, maxHeight: 'calc(100% - 16px)' }}
+        style={{ height: `calc(${score}% * 0.9 + 2px)`, maxHeight: 'calc(100% - 12px)' }}
       ></div>
 
       {steps.map((step, i) => (
@@ -494,7 +513,7 @@ const EmailModal = ({
               <div className="rounded-2xl border border-slate-200 dark:border-dark-700 bg-white dark:bg-dark-900 p-5 shadow-sm overflow-hidden relative">
                 {/* Dynamic Progress Background */}
                 <div
-                  className={`absolute top-0 left-0 h-full opacity-[0.03] dark:opacity-[0.07] transition-all duration-1000 ease-out ${lead.score >= 82 ? 'bg-emerald-500' : lead.score >= 65 ? 'bg-amber-500' : 'bg-rose-500'
+                  className={`absolute top-0 left-0 h-full opacity-[0.03] dark:opacity-[0.07] transition-all duration-1000 ease-out ${lead.score > 80 ? 'bg-emerald-500' : lead.score >= 50 ? 'bg-amber-500' : 'bg-rose-500'
                     }`}
                   style={{ width: `${lead.score}%` }}
                 ></div>
@@ -515,13 +534,33 @@ const EmailModal = ({
                   {/* Subtle Progress Bar */}
                   <div className="h-1.5 w-full bg-slate-100 dark:bg-dark-800 rounded-full overflow-hidden mb-4">
                     <div
-                      className={`h-full transition-all duration-1000 ease-out ${lead.score >= 82 ? 'bg-emerald-500' : lead.score >= 65 ? 'bg-amber-500' : 'bg-rose-500'
+                      className={`h-full transition-all duration-1000 ease-out ${lead.score > 80 ? 'bg-emerald-500' : lead.score >= 50 ? 'bg-amber-500' : 'bg-rose-500'
                         }`}
                       style={{ width: `${lead.score}%` }}
                     ></div>
                   </div>
 
-                  <p className="text-sm text-slate-700 dark:text-slate-200 leading-relaxed font-medium">{lead.action}</p>
+                  <div className="space-y-4">
+                    <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2 mb-2">
+                      <Zap size={14} className="text-indigo-500" />
+                      Next Best Action
+                    </h4>
+                    <div className="space-y-1">
+                      {lead.actions.map((action, idx) => (
+                        <div 
+                          key={idx} 
+                          className={`flex items-start gap-3 p-3 rounded-xl transition-all duration-300 ${
+                            idx === 1 ? 'bg-indigo-50/50 dark:bg-indigo-500/5' : 'hover:bg-slate-50 dark:hover:bg-dark-800/50'
+                          }`}
+                        >
+                          <Zap size={16} className="text-indigo-500 mt-0.5 shrink-0" />
+                          <p className="text-sm text-slate-700 dark:text-slate-200 leading-relaxed font-medium">
+                            {action}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                 </div>
               </div>
 
@@ -893,7 +932,7 @@ const LeadAnalyzer = () => {
     setAnalyzingId(id);
     try {
       const response = await api.post('/leads/analyze', { leadData: { id } });
-      const { score, next_best_action } = response.data;
+      const { score, next_best_action, next_best_actions } = response.data;
 
       setLeads((prev) => prev.map((lead) => (
         lead.id === id
@@ -902,12 +941,14 @@ const LeadAnalyzer = () => {
             score,
             status: lead.status || 'Pending',
             action: next_best_action,
+            actions: next_best_actions || [next_best_action],
             raw: {
               ...lead.raw,
               LeadRatings: score,
               Lead_Status_Term: 'Scored',
               Status: lead.status || 'Pending',
               AIRecommendation: next_best_action,
+              AIRecommendations: next_best_actions,
               AISegment: response.data.segment,
               AIScoreBreakdown: response.data.breakdown,
               AISignals: response.data.signals,
