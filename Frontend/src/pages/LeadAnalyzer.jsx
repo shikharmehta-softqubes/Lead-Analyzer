@@ -187,7 +187,7 @@ const getScoreBadge = (score) => {
 
 const WinProbabilityGauge = ({ probability }) => {
   const rotation = (probability / 100) * 180 - 90;
-  
+
   const getGaugeColor = (score) => {
     if (score >= 82) return 'border-emerald-500';
     if (score >= 65) return 'border-amber-500';
@@ -203,11 +203,11 @@ const WinProbabilityGauge = ({ probability }) => {
   return (
     <div className="relative w-48 h-24 overflow-hidden mx-auto mb-4">
       <div className="absolute top-0 left-0 w-48 h-48 rounded-full border-[12px] border-slate-100 dark:border-dark-800"></div>
-      <div 
+      <div
         className={`absolute top-0 left-0 w-48 h-48 rounded-full border-[12px] transition-all duration-1000 ease-out ${getGaugeColor(probability)}`}
-        style={{ 
+        style={{
           clipPath: 'polygon(0 0, 100% 0, 100% 50%, 0 50%)',
-          transform: `rotate(${rotation}deg)` 
+          transform: `rotate(${rotation}deg)`
         }}
       ></div>
       <div className="absolute bottom-0 left-1/2 -translate-x-1/2 text-center pb-2">
@@ -228,7 +228,7 @@ const RoadmapToClose = ({ steps, score = 0 }) => (
       {/* Background line */}
       <div className="absolute left-[11px] top-2 bottom-2 w-0.5 bg-slate-100 dark:bg-dark-800"></div>
       {/* Progress line */}
-      <div 
+      <div
         className="absolute left-[11px] top-2 w-0.5 bg-primary-500 transition-all duration-1000 ease-out"
         style={{ height: `calc(${score}% - 8px)`, maxHeight: 'calc(100% - 16px)' }}
       ></div>
@@ -451,7 +451,7 @@ const EmailModal = ({
             <div className="lg:col-span-1 space-y-6">
               <div className="rounded-2xl border border-slate-200 dark:border-dark-700 bg-white dark:bg-dark-900 p-6 shadow-sm">
                 <WinProbabilityGauge probability={lead.score > 0 ? lead.score : 75} />
-                
+
                 <div className="space-y-4 mt-6">
                   {((lead.raw.AISignals && lead.raw.AISignals.length > 0) || lead.score >= 60) && (
                     <div className="flex items-start gap-3 p-3 rounded-xl bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-100 dark:border-emerald-500/20">
@@ -478,7 +478,7 @@ const EmailModal = ({
                 </div>
               </div>
 
-              <RoadmapToClose 
+              <RoadmapToClose
                 score={lead.score}
                 steps={[
                   { label: 'Initial Engagement', description: 'Lead successfully responded to first AI draft.', done: lead.score >= 25 },
@@ -493,13 +493,12 @@ const EmailModal = ({
             <div className="lg:col-span-2 space-y-6">
               <div className="rounded-2xl border border-slate-200 dark:border-dark-700 bg-white dark:bg-dark-900 p-5 shadow-sm overflow-hidden relative">
                 {/* Dynamic Progress Background */}
-                <div 
-                  className={`absolute top-0 left-0 h-full opacity-[0.03] dark:opacity-[0.07] transition-all duration-1000 ease-out ${
-                    lead.score >= 82 ? 'bg-emerald-500' : lead.score >= 65 ? 'bg-amber-500' : 'bg-rose-500'
-                  }`}
+                <div
+                  className={`absolute top-0 left-0 h-full opacity-[0.03] dark:opacity-[0.07] transition-all duration-1000 ease-out ${lead.score >= 82 ? 'bg-emerald-500' : lead.score >= 65 ? 'bg-amber-500' : 'bg-rose-500'
+                    }`}
                   style={{ width: `${lead.score}%` }}
                 ></div>
-                
+
                 <div className="relative z-10">
                   <div className="flex items-center justify-between gap-3 mb-3">
                     <div className="flex items-center gap-2">
@@ -512,13 +511,12 @@ const EmailModal = ({
                       <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-widest">Live Analysis</span>
                     </div>
                   </div>
-                  
+
                   {/* Subtle Progress Bar */}
                   <div className="h-1.5 w-full bg-slate-100 dark:bg-dark-800 rounded-full overflow-hidden mb-4">
-                    <div 
-                      className={`h-full transition-all duration-1000 ease-out ${
-                        lead.score >= 82 ? 'bg-emerald-500' : lead.score >= 65 ? 'bg-amber-500' : 'bg-rose-500'
-                      }`}
+                    <div
+                      className={`h-full transition-all duration-1000 ease-out ${lead.score >= 82 ? 'bg-emerald-500' : lead.score >= 65 ? 'bg-amber-500' : 'bg-rose-500'
+                        }`}
                       style={{ width: `${lead.score}%` }}
                     ></div>
                   </div>
@@ -755,13 +753,24 @@ const LeadAnalyzer = () => {
     needsNurture: false,
     isStale: false,
   });
+  const [paginationInfo, setPaginationInfo] = useState(null);
 
-  const loadLeads = async () => {
+  const loadLeads = async (page = 1, limit = 50) => {
     setLoading(true);
     try {
-      const response = await api.get('/leads');
-      const nextLeads = response.data.length ? response.data : demoLeads;
+      const response = await api.get(`/leads?page=${page}&limit=${limit}`);
+      const data = response.data;
+
+      // Handle both paginated and non-paginated responses for backward compatibility
+      const leadsArray = data.leads || data;
+      const nextLeads = leadsArray.length ? leadsArray : demoLeads;
+
       setLeads(nextLeads.map(normalizeLead));
+
+      // Store pagination info if available
+      if (data.pagination) {
+        setPaginationInfo(data.pagination);
+      }
     } catch (error) {
       console.error('Failed to load leads:', error);
       setLeads(demoLeads.map(normalizeLead));
@@ -1048,7 +1057,7 @@ const LeadAnalyzer = () => {
           </div>
           <div className="flex items-center gap-2">
             {row.original.nurture.needsNurture && (
-              <span 
+              <span
                 title={`Last activity: ${formatDuration(row.original.nurture.inactiveMin)} ago`}
                 className="px-1.5 py-0.5 rounded-[4px] text-[9px] font-black uppercase tracking-tight bg-amber-50 text-amber-600 border border-amber-200 dark:bg-amber-500/10 dark:text-amber-400 cursor-help"
               >
@@ -1056,7 +1065,7 @@ const LeadAnalyzer = () => {
               </span>
             )}
             {row.original.nurture.isStale && (
-              <span 
+              <span
                 title={`Lead age: ${formatDuration(row.original.nurture.ageMin)}`}
                 className="px-1.5 py-0.5 rounded-[4px] text-[9px] font-black uppercase tracking-tight bg-rose-50 text-rose-600 border border-rose-200 dark:bg-rose-500/10 dark:text-rose-400 cursor-help"
               >
@@ -1279,13 +1288,12 @@ const LeadAnalyzer = () => {
               <div className="flex flex-wrap gap-2">
                 <button
                   onClick={clearAllFilters}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all duration-200 flex items-center gap-1.5 shadow-sm border ${
-                    !table.getState().columnFilters.length && !globalFilter
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all duration-200 flex items-center gap-1.5 shadow-sm border ${!table.getState().columnFilters.length && !globalFilter
                       ? 'bg-primary-600 text-white border-primary-600'
                       : 'bg-white dark:bg-dark-700 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-dark-600 hover:border-primary-400'
-                  }`}
+                    }`}
                 >
-                  <LayoutList size={14} className={!table.getState().columnFilters.length && !globalFilter ? 'text-white' : 'text-primary-500'} /> 
+                  <LayoutList size={14} className={!table.getState().columnFilters.length && !globalFilter ? 'text-white' : 'text-primary-500'} />
                   {leads.length} Total
                 </button>
                 <button
@@ -1293,13 +1301,12 @@ const LeadAnalyzer = () => {
                     table.resetColumnFilters();
                     table.getColumn('score')?.setFilterValue({ min: 81, max: 100 });
                   }}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all duration-200 flex items-center gap-1.5 shadow-sm border ${
-                    JSON.stringify(table.getColumn('score')?.getFilterValue()) === JSON.stringify({ min: 81, max: 100 })
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all duration-200 flex items-center gap-1.5 shadow-sm border ${JSON.stringify(table.getColumn('score')?.getFilterValue()) === JSON.stringify({ min: 81, max: 100 })
                       ? 'bg-emerald-600 text-white border-emerald-600'
                       : 'bg-white dark:bg-dark-700 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-dark-600 hover:border-emerald-400'
-                  }`}
+                    }`}
                 >
-                  <Target size={14} className={JSON.stringify(table.getColumn('score')?.getFilterValue()) === JSON.stringify({ min: 81, max: 100 }) ? 'text-white' : 'text-emerald-500'} /> 
+                  <Target size={14} className={JSON.stringify(table.getColumn('score')?.getFilterValue()) === JSON.stringify({ min: 81, max: 100 }) ? 'text-white' : 'text-emerald-500'} />
                   {highValueCount} High Value (Hot)
                 </button>
                 <button
@@ -1307,13 +1314,12 @@ const LeadAnalyzer = () => {
                     table.resetColumnFilters();
                     table.getColumn('score')?.setFilterValue({ min: 50, max: 80 });
                   }}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all duration-200 flex items-center gap-1.5 shadow-sm border ${
-                    JSON.stringify(table.getColumn('score')?.getFilterValue()) === JSON.stringify({ min: 50, max: 80 })
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all duration-200 flex items-center gap-1.5 shadow-sm border ${JSON.stringify(table.getColumn('score')?.getFilterValue()) === JSON.stringify({ min: 50, max: 80 })
                       ? 'bg-amber-600 text-white border-amber-600'
                       : 'bg-white dark:bg-dark-700 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-dark-600 hover:border-amber-400'
-                  }`}
+                    }`}
                 >
-                  <AlertCircle size={14} className={JSON.stringify(table.getColumn('score')?.getFilterValue()) === JSON.stringify({ min: 50, max: 80 }) ? 'text-white' : 'text-amber-500'} /> 
+                  <AlertCircle size={14} className={JSON.stringify(table.getColumn('score')?.getFilterValue()) === JSON.stringify({ min: 50, max: 80 }) ? 'text-white' : 'text-amber-500'} />
                   {nurtureCount} Nurture (Warm)
                 </button>
                 <button
@@ -1321,13 +1327,12 @@ const LeadAnalyzer = () => {
                     table.resetColumnFilters();
                     table.getColumn('score')?.setFilterValue({ min: 0, max: 49 });
                   }}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all duration-200 flex items-center gap-1.5 shadow-sm border ${
-                    JSON.stringify(table.getColumn('score')?.getFilterValue()) === JSON.stringify({ min: 0, max: 49 })
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all duration-200 flex items-center gap-1.5 shadow-sm border ${JSON.stringify(table.getColumn('score')?.getFilterValue()) === JSON.stringify({ min: 0, max: 49 })
                       ? 'bg-rose-600 text-white border-rose-600'
                       : 'bg-white dark:bg-dark-700 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-dark-600 hover:border-rose-400'
-                  }`}
+                    }`}
                 >
-                  <AlertCircle size={14} className={JSON.stringify(table.getColumn('score')?.getFilterValue()) === JSON.stringify({ min: 0, max: 49 }) ? 'text-white' : 'text-rose-500'} /> 
+                  <AlertCircle size={14} className={JSON.stringify(table.getColumn('score')?.getFilterValue()) === JSON.stringify({ min: 0, max: 49 }) ? 'text-white' : 'text-rose-500'} />
                   {atRiskCount} At Risk (Cold)
                 </button>
 
@@ -1338,11 +1343,10 @@ const LeadAnalyzer = () => {
                     table.resetColumnFilters();
                     table.getColumn('needsNurture')?.setFilterValue(true);
                   }}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all duration-200 flex items-center gap-1.5 shadow-sm border ${
-                    table.getColumn('needsNurture')?.getFilterValue() === true
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all duration-200 flex items-center gap-1.5 shadow-sm border ${table.getColumn('needsNurture')?.getFilterValue() === true
                       ? 'bg-amber-500 text-white border-amber-500'
                       : 'bg-white dark:bg-dark-700 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-dark-600 hover:border-amber-400'
-                  }`}
+                    }`}
                 >
                   <div className={`h-2 w-2 rounded-full bg-amber-500 border border-white shadow-[0_0_8px_rgba(245,158,11,0.6)] ${table.getColumn('needsNurture')?.getFilterValue() === true ? 'animate-pulse' : ''}`}></div>
                   {awaitingCount} Awaiting Action
@@ -1352,11 +1356,10 @@ const LeadAnalyzer = () => {
                     table.resetColumnFilters();
                     table.getColumn('isStale')?.setFilterValue(true);
                   }}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all duration-200 flex items-center gap-1.5 shadow-sm border ${
-                    table.getColumn('isStale')?.getFilterValue() === true
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all duration-200 flex items-center gap-1.5 shadow-sm border ${table.getColumn('isStale')?.getFilterValue() === true
                       ? 'bg-rose-500 text-white border-rose-500'
                       : 'bg-white dark:bg-dark-700 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-dark-600 hover:border-rose-400'
-                  }`}
+                    }`}
                 >
                   <div className="h-2 w-2 rounded-full bg-rose-500 border border-white shadow-[0_0_8px_rgba(244,63,94,0.6)]"></div>
                   {staleCount} Stale Lead
@@ -1380,7 +1383,11 @@ const LeadAnalyzer = () => {
                 className="input-field bg-white dark:bg-dark-900"
               >
                 <option value="">All statuses</option>
-                {statusOptions.map((status) => <option key={status} value={status}>{status}</option>)}
+                <option value="Pending">Pending</option>
+                <option value="Follow-up">Follow-up</option>
+                <option value="Closed">Closed</option>
+                {/* <option value="">All statuses</option>
+                {statusOptions.map((status) => <option key={status} value={status}>{status}</option>)} */}
               </select>
               <select
                 value={table.getColumn('type')?.getFilterValue() ?? ''}
@@ -1388,7 +1395,12 @@ const LeadAnalyzer = () => {
                 className="input-field bg-white dark:bg-dark-900"
               >
                 <option value="">All types</option>
-                {typeOptions.map((type) => <option key={type} value={type}>{type}</option>)}
+                <option value="Corporate">Corporate</option>
+                <option value="Association">Association</option>
+                <option value="SMERF">SMERF</option>
+                <option value="Wedding">Wedding</option>
+                {/* <option value="">All types</option>
+                {typeOptions.map((type) => <option key={type} value={type}>{type}</option>)} */}
               </select>
               <select
                 value={table.getColumn('score')?.getFilterValue() ?? ''}
@@ -1458,6 +1470,88 @@ const LeadAnalyzer = () => {
                 )}
               </tbody>
             </table>
+          </div>
+
+          {/* Pagination Controls */}
+          <div className="flex items-center justify-between px-4 py-3 bg-slate-50 dark:bg-dark-800/50 border-t border-slate-200 dark:border-dark-700/50">
+            <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400">
+              <span>Show</span>
+              <select
+                value={table.getState().pagination.pageSize}
+                onChange={(e) => table.setPageSize(Number(e.target.value))}
+                className="input-field bg-white dark:bg-dark-900 text-sm py-1 px-2"
+              >
+                {[8, 16, 24, 32].map((size) => (
+                  <option key={size} value={size}>
+                    {size}
+                  </option>
+                ))}
+              </select>
+              <span>entries</span>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-slate-600 dark:text-slate-400">
+                Page {table.getState().pagination.pageIndex + 1} of {table.getPageCount()}
+              </span>
+
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => table.setPageIndex(0)}
+                  disabled={!table.getCanPreviousPage()}
+                  className="p-1 rounded border border-slate-300 dark:border-dark-600 hover:bg-slate-100 dark:hover:bg-dark-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  title="First page"
+                >
+                  <ChevronsLeft size={16} />
+                </button>
+                <button
+                  onClick={() => table.previousPage()}
+                  disabled={!table.getCanPreviousPage()}
+                  className="p-1 rounded border border-slate-300 dark:border-dark-600 hover:bg-slate-100 dark:hover:bg-dark-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  title="Previous page"
+                >
+                  <ChevronLeft size={16} />
+                </button>
+
+                {/* Page numbers */}
+                <div className="flex items-center gap-1 mx-2">
+                  {Array.from({ length: Math.min(5, table.getPageCount()) }, (_, i) => {
+                    const pageIndex = Math.max(0, Math.min(table.getPageCount() - 5, table.getState().pagination.pageIndex - 2)) + i;
+                    if (pageIndex >= table.getPageCount()) return null;
+
+                    return (
+                      <button
+                        key={pageIndex}
+                        onClick={() => table.setPageIndex(pageIndex)}
+                        className={`px-3 py-1 text-sm rounded border ${table.getState().pagination.pageIndex === pageIndex
+                            ? 'bg-primary-500 text-white border-primary-500'
+                            : 'border-slate-300 dark:border-dark-600 hover:bg-slate-100 dark:hover:bg-dark-700'
+                          }`}
+                      >
+                        {pageIndex + 1}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <button
+                  onClick={() => table.nextPage()}
+                  disabled={!table.getCanNextPage()}
+                  className="p-1 rounded border border-slate-300 dark:border-dark-600 hover:bg-slate-100 dark:hover:bg-dark-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  title="Next page"
+                >
+                  <ChevronRight size={16} />
+                </button>
+                <button
+                  onClick={() => table.setPageIndex(table.getPageCount() - 1)}
+                  disabled={!table.getCanNextPage()}
+                  className="p-1 rounded border border-slate-300 dark:border-dark-600 hover:bg-slate-100 dark:hover:bg-dark-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  title="Last page"
+                >
+                  <ChevronsRight size={16} />
+                </button>
+              </div>
+            </div>
           </div>
         </div>
 

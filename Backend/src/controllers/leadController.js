@@ -165,10 +165,28 @@ export const updateLead = async (req, res, next) => {
   }
 };
 
-export const getLeads = async (_req, res, next) => {
+export const getLeads = async (req, res, next) => {
   try {
-    const leads = await Lead.find().sort({ CreatedOn: -1 });
-    res.json(leads);
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 50;
+    const skip = (page - 1) * limit;
+
+    const totalLeads = await Lead.countDocuments();
+    const leads = await Lead.find()
+      .sort({ CreatedOn: -1 })
+      .skip(skip)
+      .limit(limit);
+
+    res.json({
+      leads,
+      pagination: {
+        currentPage: page,
+        totalPages: Math.ceil(totalLeads / limit),
+        totalLeads,
+        hasNextPage: page * limit < totalLeads,
+        hasPrevPage: page > 1
+      }
+    });
   } catch (error) {
     next(error);
   }

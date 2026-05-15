@@ -16,8 +16,18 @@ const ActivityModal = ({ isOpen, onClose, onActivityAdded }) => {
   useEffect(() => {
     if (isOpen) {
       api.get('/leads')
-        .then(res => setLeads(res.data))
-        .catch(err => console.error('Failed to fetch leads for dropdown:', err));
+        .then((res) => {
+          const leadList = Array.isArray(res.data)
+            ? res.data
+            : Array.isArray(res.data?.leads)
+              ? res.data.leads
+              : [];
+          setLeads(leadList);
+        })
+        .catch((err) => {
+          console.error('Failed to fetch leads for dropdown:', err);
+          setLeads([]);
+        });
     }
   }, [isOpen]);
 
@@ -83,7 +93,7 @@ const ActivityModal = ({ isOpen, onClose, onActivityAdded }) => {
               className="input-field bg-white dark:bg-dark-800 border-slate-200 dark:border-dark-700" 
              >
                <option value="">-- Select a Lead --</option>
-               {leads.map(lead => (
+               {leads?.map((lead) => (
                  <option key={lead._id || lead.LeadID} value={lead.LeadID || lead._id}>
                    {lead.CompanyName || [lead.FirstName, lead.LastName].filter(Boolean).join(' ') || 'Unknown'}
                  </option>

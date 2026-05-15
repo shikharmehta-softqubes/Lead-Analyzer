@@ -238,18 +238,18 @@ const LiveIntelligenceFeed = ({ navigate, externalEvents = [] }) => {
   useEffect(() => {
     if (events.length === 0 && (!externalEvents || externalEvents.length === 0)) {
       setEvents([
-        {
-          id: 1,
-          type: 'signal',
-          icon: Mail,
-          title: 'System Ready',
-          lead: 'AI Assistant',
-          description: 'Dashboard is connected and waiting for new lead signals.',
-          time: 'Just now',
-          color: 'text-primary-500',
-          bgColor: 'bg-primary-500/10',
-          action: 'analyze'
-        }
+        // {
+        //   id: 1,
+        //   type: 'signal',
+        //   icon: Mail,
+        //   title: 'System Ready',
+        //   lead: 'AI Assistant',
+        //   description: 'Dashboard is connected and waiting for new lead signals.',
+        //   time: 'Just now',
+        //   color: 'text-primary-500',
+        //   bgColor: 'bg-primary-500/10',
+        //   action: 'analyze'
+        // }
       ]);
     }
   }, [events.length, externalEvents]);
