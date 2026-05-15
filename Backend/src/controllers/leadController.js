@@ -15,17 +15,27 @@ const findLeadByIdentifier = async (leadId) => {
   });
 };
 
-const buildInputDetails = (body) => ({
-  eventPurpose: body.eventPurpose || null,
-  guestCount: body.guestCount ? Number(body.guestCount) : null,
-  roomsCount: body.roomsCount ? Number(body.roomsCount) : null,
-  startDate: body.startDate || null,
-  endDate: body.endDate || null,
-  budgetRange: body.budgetRange || null,
-  preferredLocation: body.preferredLocation || null,
-  decisionTimeline: body.decisionTimeline || null,
-  contactMethod: body.contactMethod || null,
-});
+const buildInputDetails = (body) => {
+  const fields = [
+    'eventPurpose', 'guestCount', 'roomsCount', 'startDate', 
+    'endDate', 'budgetRange', 'preferredLocation', 
+    'decisionTimeline', 'contactMethod'
+  ];
+  
+  const details = {};
+  fields.forEach(field => {
+    if (body[field] !== undefined) {
+      const value = body[field];
+      if (field === 'guestCount' || field === 'roomsCount') {
+        details[field] = value !== '' ? Number(value) : null;
+      } else {
+        details[field] = value || null;
+      }
+    }
+  });
+  
+  return details;
+};
 
 const buildLeadPayload = async (body, analysis) => {
   const hotelOfferId = body.selectedHotelOfferId || body.SelectedHotelOfferID || body.hotelOfferId || null;
@@ -39,13 +49,8 @@ const buildLeadPayload = async (body, analysis) => {
     mode: 'initial',
   });
 
-  return {
+  const payload = {
     ...body,
-    Lead_Source_Term: body.Lead_Source_Term || body.eventPurpose || 'Manual Entry',
-    Address: body.Address || body.preferredLocation || null,
-    Priority: body.Priority || body.mainPriority || body.decisionTimeline || null,
-    IsGroup: body.IsGroup ?? Boolean(body.groupType),
-    Status: body.Status || body.status || 'Pending',
     LeadRatings: analysis.score,
     AISegment: analysis.segment,
     AIRecommendation: analysis.recommendedAction,
@@ -54,20 +59,18 @@ const buildLeadPayload = async (body, analysis) => {
     AISignals: analysis.signals,
     AIRisks: analysis.risks,
     AIScoreUpdatedOn: new Date(),
-    Lead_Status_Term: body.Lead_Status_Term || 'Scored',
-    Comment: body.Comment || body.specialRequirements || analysis.recommendedAction,
     SelectedHotelOfferID: configuredOffer.hotelOffer?.HotelOfferID || hotelOfferId,
     SelectedHotelName: configuredOffer.hotelOffer?.HotelName || hotelName,
     SelectedHotelCode: configuredOffer.hotelOffer?.HotelCode || hotelCode,
-    PropertyID: configuredOffer.hotelOffer?.HotelCode || hotelCode,
-    AppliedOffer: buildOfferSnapshot({
-      ...configuredOffer,
-      segment: analysis.segment,
-      mode: 'initial',
-    }),
-    LastActivityDate: new Date(),
-    InputDetails: buildInputDetails(body),
+    LastActivityDate: new Date()
   };
+
+  if (!payload.Lead_Source_Term && body.eventPurpose) payload.Lead_Source_Term = body.eventPurpose;
+  if (!payload.Address && body.preferredLocation) payload.Address = body.preferredLocation;
+  if (!payload.Priority && body.mainPriority) payload.Priority = body.mainPriority;
+  if (!payload.Comment && body.specialRequirements) payload.Comment = body.specialRequirements;
+  
+  return payload;
 };
 
 const buildLeadActivity = (lead, action) => {
@@ -76,13 +79,13 @@ const buildLeadActivity = (lead, action) => {
   return {
     ClientID: lead.ClientID || null,
     OwnerID: lead.OwnerID || null,
-    AssociationID: lead.LeadID || null,
+    AssociationID: lead.LeadID || lead._id || null,
     AssociationType_Term: 'Lead',
     ActivityStatus_Term: lead.Status || 'Pending',
     ActivityType_Term: action === 'create' ? 'Lead Created' : 'Lead Updated',
-    Priority_Term: lead.Priority || null,
+    Priority_Term: lead.Priority || lead.mainPriority || null,
     ActivitySubject: `${subject} ${action === 'create' ? 'created' : 'updated'}`,
-    ActivityDetails: lead.Comment
+    ActivityDetails: lead.Comment || lead.specialRequirements
       ? `${lead.Comment}${lead.LeadRatings ? ` | Score: ${lead.LeadRatings}` : ''}`
       : `${action === 'create' ? 'Lead created' : 'Lead updated'}${lead.Status ? ` with status ${lead.Status}` : ''}`,
     DateOfCreated: new Date(),
@@ -143,7 +146,12 @@ export const updateLead = async (req, res, next) => {
       },
     };
 
-    const activities = await Activity.find({ AssociationID: lead.LeadID || lead._id }).sort({ DateOfCreated: -1 });
+    const activities = await Activity.find({ 
+      $or: [
+        { AssociationID: lead.LeadID },
+        { AssociationID: String(lead._id) }
+      ]
+    }).sort({ DateOfCreated: -1 });
     const analysis = await analyzeLeadData(mergedLead, activities);
     const payload = await buildLeadPayload(mergedLead, analysis);
 
@@ -202,7 +210,12 @@ export const analyzeLead = async (req, res, next) => {
     const lead = await findLeadByIdentifier(leadId);
     
     const activities = lead 
-      ? await Activity.find({ AssociationID: lead.LeadID || lead._id }).sort({ DateOfCreated: -1 })
+      ? await Activity.find({ 
+          $or: [
+            { AssociationID: lead.LeadID },
+            { AssociationID: String(lead._id) }
+          ]
+        }).sort({ DateOfCreated: -1 })
       : [];
       
     const analysis = await analyzeLeadData(lead || req.body?.leadData || {}, activities);
@@ -247,7 +260,12 @@ export const getLeadInsights = async (req, res, next) => {
       throw new Error('Lead not found');
     }
 
-    const activities = await Activity.find({ AssociationID: lead.LeadID || lead._id }).sort({ DateOfCreated: -1 });
+    const activities = await Activity.find({ 
+      $or: [
+        { AssociationID: lead.LeadID },
+        { AssociationID: String(lead._id) }
+      ]
+    }).sort({ DateOfCreated: -1 });
     const analysis = await analyzeLeadData(lead, activities);
     res.json({ lead, analysis });
   } catch (error) {

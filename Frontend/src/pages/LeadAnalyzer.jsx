@@ -976,7 +976,7 @@ const LeadAnalyzer = () => {
       const endpoint = isFollowUp ? '/communication/generate-follow-up' : '/communication/smart-reply';
       const payload = isFollowUp
         ? { leadId: selectedLead.id, leadData: selectedLead.raw, customOffer: activeOffer }
-        : { leadData: selectedLead.raw, emailContext: 'Initial outreach for event planning inquiry', customOffer: activeOffer };
+        : { leadId: selectedLead.id, leadData: selectedLead.raw, emailContext: 'Initial outreach for event planning inquiry', customOffer: activeOffer };
 
       const response = await api.post(endpoint, payload);
       setGeneratedEmail(response.data.draft);
